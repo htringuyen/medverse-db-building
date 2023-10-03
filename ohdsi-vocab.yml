@@ -1,0 +1,300 @@
+server_uri: bolt://localhost:7687
+database: neo4j
+admin_user: neo4j
+admin_pass: huutritk5722
+files:
+  - url: file:///var/lib/neo4j/import/vocab-clean/VOCABULARY.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        MERGE (v:Vocabulary {vocId:row.vocabulary_id})
+            ON CREATE
+            SET v:Concept,
+                v.cepId = toInteger(row.vocabulary_concept_id),
+                v.vocName = row.vocabulary_name,
+                v.vocRef = row.vocabulary_reference,
+                v.vocVersion = row.vocabulary_version
+    
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/DOMAIN.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        MERGE (d:Domain {domainId:row.domain_id})
+        ON CREATE
+        SET d:Concept,
+            d.cepId = toInteger(row.domain_concept_id),
+            d.domainName = row.domain_name
+        
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/CONCEPT_CLASS.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        MERGE (c:ConceptClass {classId:row.concept_class_id})
+        ON CREATE
+        SET c:Concept,
+            c.cepId = toInteger(row.concept_class_concept_id),
+            c.className = row.concept_class_name
+        
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/RELATIONSHIP.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        WITH row,
+            CASE WHEN row.is_hierarchical = '1' THEN true ELSE false END AS is_hierarchical,
+            CASE WHEN row.defines_ancestry = '1' THEN true ELSE false END AS defines_ancestry
+        MERGE (r:Relationship {relId: row.relationship_id})
+            ON CREATE
+            SET r:Concept,
+                r.cepId = toInteger(row.relationship_concept_id),
+                r.relName = row.relationship_name,
+                r.isHier = is_hierarchical,
+                r.defAncestry = defines_ancestry,
+                r.revRelId = row.reverse_relationship_id
+        
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/CONCEPT.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        WITH row
+        WHERE EXISTS{ (:Concept {cepId:toInteger(row.concept_id)}) } OR 
+            (row.vocabulary_id <> "Vocabulary" AND row.vocabulary_id <> "Domain" AND row.vocabulary_id <> "Concept Class" AND row.vocabulary_id <> "Relationship")
+    
+        MERGE (c:Concept {cepId:toInteger(row.concept_id)})
+        SET c.cepName = row.concept_name,
+            c.cepCode = row.concept_code,
+            c.validStartDate = date(row.valid_start_date),
+            c.validEndDate = date(row.valid_end_date)
+        FOREACH(ignore IN CASE WHEN row.invalid_reason IS NOT NULL AND row.invalid_reason <> '' THEN [1] ELSE [] END |
+            SET c.invalidReason = row.invalid_reason
+        )
+    
+        WITH row, c,
+            CASE 
+                WHEN row.standard_concept = 'S' THEN "STDCEP" 
+                WHEN row.standard_concept = 'C' THEN "CLFCEP"
+                ELSE "STDNON" END AS stdStatus
+        CALL apoc.create.setLabels(c, ["Concept", row.vocabulary_id, stdStatus]) YIELD node
+    
+        WITH row, c
+        MATCH (vocabulary:Vocabulary {vocId:row.vocabulary_id})
+        CREATE (c)-[:OF_VOC]->(vocabulary)
+    
+        WITH row, c
+        MATCH (domain:Domain {domainId:row.domain_id})
+        CREATE (c)-[:OF_DOMAIN]->(domain)
+    
+        WITH row, c
+        MATCH (class:ConceptClass {classId:row.concept_class_id})
+        CREATE (c)-[:OF_CLASS]->(class)
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/CONCEPT_RELATIONSHIP.csv
+    mode: async
+    thread_count: 40
+    field_separator: \t
+    chunk_size: 5000
+    log_step: 400
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        MATCH (c1:Concept {cepId:toInteger(row.concept_id_1)}),
+            (c2:Concept {cepId:toInteger(row.concept_id_2)})
+        WITH row, c1, c2
+        CALL apoc.create.relationship(c1, row.relationship_id, 
+            {validStartDate:date(row.valid_start_date), validEndDate:date(row.valid_end_date)}, c2)
+            YIELD rel AS matchedRel
+        WITH row, matchedRel
+        FOREACH(ignore IN CASE WHEN row.invalid_reason IS NOT NULL AND row.invalid_reason <> '' THEN [1] ELSE [] END |
+            SET matchedRel.invalidReason = row.invalid_reason
+        )
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/DRUG_STRENGTH.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 10000
+    log_step: 10
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        CALL {
+            WITH row
+            WITH row
+            WHERE row.drug_concept_id = row.ingredient_concept_id
+            MATCH (ingt:Concept {cepId:toInteger(row.ingredient_concept_id)}),
+                (amountUnit:Concept {cepId:toInteger(row.amount_unit_concept_id)})
+            MERGE (ingt)-[:HAS_POSS_UNIT]->(amountUnit)
+        }
+    
+        WITH row
+        WHERE row.drug_concept_id <> row.ingredient_concept_id
+    
+        MATCH (drug: Concept {cepId:toInteger(row.drug_concept_id)}),
+            (ingt: Concept {cepId:toInteger(row.ingredient_concept_id)})   
+        WITH row, drug, ingt
+        SET drug:AstdDrug
+        MERGE (drug)-[:HAS_ING_STR]->(strength:IngStrength)
+            ON CREATE
+            SET strength.boxSize = toInteger(row.box_size),
+                strength.validStartDate = date(row.valid_start_date),
+                strength.validEndDate = date(row.valid_end_date),
+                strength.invalidReason = row.invalid_reason
+        MERGE (strength)-[:OF_INGREDIENT]->(ingt)
+            ON CREATE
+            SET ingt:AstdIngredient
+    
+        // set amount unit
+        WITH row, strength
+        OPTIONAL MATCH (amountUnit:Concept {cepId:toInteger(row.amount_unit_concept_id)})
+        FOREACH(ignore IN CASE WHEN amountUnit IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (strength)-[amountRel:HAS_AMOUNT_UNIT]->(amountUnit)
+                ON CREATE
+                SET strength.amountValue = toFloat(row.amount_value)
+        )
+    
+        // set numerator unit
+        WITH row, strength
+        OPTIONAL MATCH (numeratorUnit:Concept {cepId:toInteger(row.numerator_unit_concept_id)})
+        FOREACH(ignore IN CASE WHEN numeratorUnit IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (strength)-[numeratorRel:HAS_NUMER_UNIT]->(numeratorUnit)
+                ON CREATE
+                SET strength.numerValue = toFloat(row.numerator_value)
+        )
+    
+        // set denominator unit
+        WITH row, strength
+        OPTIONAL MATCH (denominatorUnit:Concept {cepId:toInteger(row.denominator_unit_concept_id)})
+        FOREACH(ignore IN CASE WHEN denominatorUnit IS NOT NULL THEN [1] ELSE [] END |
+            MERGE (strength)-[denominatorRel:HAS_DENOM_UNIT]->(denominatorUnit)
+                ON CREATE
+                SET strength.denomValue = toFloat(row.denominator_value)
+        )
+        
+
+  - url: file:///var/lib/neo4j/import/vocab-clean/CONCEPT_SYNONYM.csv
+    mode: sync
+    thread_count: 1
+    field_separator: \t
+    chunk_size: 10000
+    log_step: 10
+    cql: |
+        WITH $dict.rows as rows UNWIND rows as row
+        MATCH (c:Concept {cepId:toInteger(row.concept_id)}),
+        (l:Concept {cepId:toInteger(row.language_concept_id)})
+
+        WITH c, l, row
+        MERGE (s:Synonym {synonymName:row.concept_synonym_name})
+        MERGE (c)-[:HAS_SYNONYM]->(s)
+        MERGE (s)-[:IN_LANGUAGE]->(l)
+    
+
+pre_ingest:
+  - CREATE CONSTRAINT concept_id_key IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepId) IS NODE KEY;
+  - CREATE CONSTRAINT concept_id_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepId) IS ::INTEGER;
+
+  - CREATE CONSTRAINT concept_name_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepName) IS ::STRING;
+
+  - CREATE CONSTRAINT concept_code_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepCode) IS ::STRING;
+
+  - CREATE CONSTRAINT concept_valid_start_date_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.validStartDate) IS ::DATE;
+
+  - CREATE CONSTRAINT concept_valid_end_date_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.validEndDate) IS ::DATE;
+
+  - CREATE CONSTRAINT concept_invalid_reason_type IF NOT EXISTS FOR (n:Concept) REQUIRE (n.invalidReason) IS ::STRING;
+
+  - CREATE CONSTRAINT vocabulary_id_key IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocId) IS NODE KEY;
+  - CREATE CONSTRAINT vocabulary_id_type IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocId) IS ::STRING;
+
+  - CREATE CONSTRAINT vocabulary_name_exists IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocName) IS NOT NULL;
+  - CREATE CONSTRAINT vocabulary_name_type IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocName) IS ::STRING;
+
+  - CREATE CONSTRAINT vocabulary_reference_exists IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocRef) IS NOT NULL;
+  - CREATE CONSTRAINT vocabulary_reference_type IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocRef) IS ::STRING;
+
+  - CREATE CONSTRAINT vocabulary_version_type IF NOT EXISTS FOR (n:Vocabulary) REQUIRE (n.vocVersion) IS ::STRING;
+
+  - CREATE CONSTRAINT domain_id_key IF NOT EXISTS FOR (n:Domain) REQUIRE (n.domainId) IS NODE KEY;
+  - CREATE CONSTRAINT domain_id_type IF NOT EXISTS FOR (n:Domain) REQUIRE (n.domainId) IS ::STRING;
+
+  - CREATE CONSTRAINT domain_name_exists IF NOT EXISTS FOR (n:Domain) REQUIRE (n.domainName) IS NOT NULL;
+  - CREATE CONSTRAINT domain_name_type IF NOT EXISTS FOR (n:Domain) REQUIRE (n.domainName) IS ::STRING;
+
+  - CREATE CONSTRAINT concept_class_id_key IF NOT EXISTS FOR (n:ConcepClass) REQUIRE (n.classId) IS NODE KEY;
+  - CREATE CONSTRAINT concept_class_id_type IF NOT EXISTS FOR (n:ConcepClass) REQUIRE (n.classId) IS ::STRING;
+
+  - CREATE CONSTRAINT concept_class_name_exsits IF NOT EXISTS FOR (n:ConcepClass) REQUIRE (n.className) IS NOT NULL;
+  - CREATE CONSTRAINT concept_class_name_type IF NOT EXISTS FOR (n:ConcepClass) REQUIRE (n.className) IS ::STRING;
+
+  - CREATE CONSTRAINT relationship_id_key IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.relId) IS NODE KEY;
+  - CREATE CONSTRAINT relationship_id_type IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.relId) IS ::STRING;
+
+  - CREATE CONSTRAINT relationship_name_exists IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.relName) IS NOT NULL;
+  - CREATE CONSTRAINT relationship_name_type IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.relName) IS ::STRING;
+
+  - CREATE CONSTRAINT relationship_is_hier_exists IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.isHier) IS NOT NULL;
+  - CREATE CONSTRAINT relationship_is_hier_type IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.isHier) IS ::BOOLEAN;
+
+  - CREATE CONSTRAINT relationship_def_ancestry_exists IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.defAncestry) IS NOT NULL;
+  - CREATE CONSTRAINT relationship_def_ancestry_type IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.defAncestry) IS ::BOOLEAN;
+
+  - CREATE CONSTRAINT reverse_relationship_id_exists IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.revRelId) IS NOT NULL;
+  - CREATE CONSTRAINT reverse_relationship_id_type IF NOT EXISTS FOR (n:Relationship) REQUIRE (n.revRelId) IS ::STRING;
+
+
+  - CREATE CONSTRAINT concept_synonym_name_key IF NOT EXISTS FOR (n:Synonym) REQUIRE (n.synonymName) IS NODE KEY;
+  - CREATE CONSTRAINT concept_synonym_name_type IF NOT EXISTS FOR (n:Synonym) REQUIRE (n.synonymName) IS ::STRING;
+
+  - CREATE CONSTRAINT box_size_type IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.boxSize) IS ::INTEGER;
+
+  - CREATE CONSTRAINT valid_start_date_exists IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.validStartDate) IS NOT NULL;
+  - CREATE CONSTRAINT valid_start_date_type IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.validStartDate) IS ::DATE;
+
+  - CREATE CONSTRAINT valid_end_date_exists IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.validEndDate) IS NOT NULL;
+  - CREATE CONSTRAINT valid_end_date_type IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.validEndDate) IS ::DATE;
+
+  - CREATE CONSTRAINT invalid_reason_type IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.invalidReason) IS ::STRING;
+
+  - CREATE CONSTRAINT amout_value_type IF NOT EXISTS FOR (n:IngStrength) REQUIRE (n.amoutValue) IS ::FLOAT;
+
+
+post_ingest:
+  - CREATE CONSTRAINT concept_name_exists IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepName) IS NOT NULL;
+
+  - CREATE CONSTRAINT concept_code_exists IF NOT EXISTS FOR (n:Concept) REQUIRE (n.cepCode) IS NOT NULL;
+
+  - CREATE CONSTRAINT concept_valid_start_date_exists IF NOT EXISTS FOR (n:Concept) REQUIRE (n.validStartDate) IS NOT NULL;
+
+  - CREATE CONSTRAINT concept_valid_end_date_exists IF NOT EXISTS FOR (n:Concept) REQUIRE (n.validEndDate) IS NOT NULL;
+
+
+
+
+
+
+
+
+
+
+
+

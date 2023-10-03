@@ -1,0 +1,18 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/transfers.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 10
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      with row
+      where row.outtime <> ''
+      merge (s:Silly)
+      set s.intime = datetime({epochseconds: apoc.date.parse(row.intime, 's', 'yyyy-MM-dd HH:mm:ss')})
+      set s.outtime = datetime({epochseconds: apoc.date.parse(row.outtime, 's', 'yyyy-MM-dd HH:mm:ss')})

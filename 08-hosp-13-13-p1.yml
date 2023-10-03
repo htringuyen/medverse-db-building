@@ -1,0 +1,47 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 13-emar-p1.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/emar_datetimes.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row,
+          datetime({epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+      merge (anc:Anchor {id:row.subject_id + '-' + charttime.epochSeconds})
+          on create
+          set anc.value = charttime
+
+  # 13-emar-p2.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/emar_pharmacies.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row, pa
+      create (era:DrugEra {id:row.pharmacy_id})
+      create (pa)-[:HAS_DRUG_ERA]->(era)
+
+  # 13-emar-p3.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/emar_eras.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      create (rxad:RxAdmin:INSTANT {id: row.emar_id})
+      with row, rxad
+      where row.pharmacy_id is not null and row.pharmacy_id <> ""
+      match (era:DrugEra {id: row.pharmacy_id})
+      create (era)-[:INCLUDES]->(rxad)
+  

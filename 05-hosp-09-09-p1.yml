@@ -1,0 +1,88 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  - url: file:///var/lib/neo4j/import/custom_partitions/labevents_specimens.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 10000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id: toInteger(row.subject_id)})
+      with row,
+          datetime( {epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')} ) - pa.shiftedYears as charttime
+      // create lab sampling
+      match (rs:RefSet {id:1703})
+      match (specItem: LocalConcept {id: rs.code + '|' + row.fluid})
+      merge (labSamp: LabSampling {specimenId: toInteger(row.specimen_id)})
+          on create
+          set labSamp:EXISTENT:Measurement,
+              labSamp.visitId = case when row.hadm_id is not null and row.hadm_id <> '' then row.hadm_id else row.subject_id
+                              + '-' + charttime.epochseconds end,
+              labSamp.subjectId = toInteger(row.subject_id),
+              labSamp.newCreated = true
+  
+      foreach (ignore in case when labSamp.newCreated is not null then [1] else [] end |
+          merge (chartedAnc:Anchor {id:row.subject_id + '-' + charttime.epochSeconds})
+              on create
+              set chartedAnc.value = charttime
+          merge (labSamp)-[:MEAS_CHARTED]->(chartedAnc)
+          merge (labSamp)-[:OF_ITEM]->(specItem)
+          remove labSamp.newCreated
+      )
+
+
+post_ingest:
+  - |
+    match (ls:LabSampling)-[:MEAS_CHARTED]->(chartedAnc)
+    call {
+      with ls, chartedAnc
+      match (pa:Patient {id:ls.subjectId})
+
+      with ls, chartedAnc, pa
+      optional match (pa)-[:HAS_CASE]->(ca)-[:HAS_VIS]->()-[:HAS_STOP]->(stop)-[:STOP_STARTED]->(startAnc),
+                      (stop)-[:STOP_ENDED]->(endAnc)
+      where chartedAnc.value >= startAnc.value and chartedAnc.value < endAnc.value
+
+      with ls, chartedAnc, stop
+
+      limit 1 // check point
+
+      foreach (ignore in case when stop is not null then [1] else [] end |
+        create (stop)-[:HAS_MEAS]->(ls)
+      )
+
+      with ls, chartedAnc
+      where stop is null
+      match (pa:Patient {id:ls.subjectId})-[:HAS_CASE]->(ca)
+
+      with ls, chartedAnc, ca
+      // create visit and stop
+      merge (vis:Visit:OUTPATIENT {id:ls.subjectId + "-" + chartedAnc.value.epochSeconds})
+          on create
+          set vis.newCreated = true
+      merge (stop:Stop:NonStay {id:ls.subjectId + "-" + chartedAnc.value.epochSeconds})
+
+      // link to meas
+      create (stop)-[:HAS_MEAS]->(ls)
+
+      foreach (ignore in case when vis.newCreated is not null then [1] else [] end |
+          remove vis.newCreated
+          create (ca)-[:HAS_VIS]->(vis)
+          create (vis)-[:HAS_STOP]->(stop)
+
+          // create start and end anchors
+          merge (startAnc:Anchor {id:ls.subjectId + "-" + chartedAnc.value.epochSeconds})
+              on create
+              set startAnc.value = chartedAnc.value
+          merge (endAnc:Anchor {id:ls.subjectId + "-" + (chartedAnc.value.epochSeconds + 60)})
+              on create
+              set endAnc.value = chartedAnc.value + duration( {seconds: 60} )
+          create (vis)-[:VIS_STARTED]->(startAnc)
+          create (vis)-[:VIS_ENDED]->(endAnc)
+          create (stop)-[:STOP_STARTED]->(startAnc)
+          create (stop)-[:STOP_ENDED]->(endAnc)
+      )
+    } in transactions of 5000 rows

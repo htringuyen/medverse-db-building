@@ -1,0 +1,979 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "position": {
+        "x": -1617.7586461689025,
+        "y": -591.0959599068027
+      },
+      "caption": "",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#9f0500"
+      }
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": -1157.5696319691397,
+        "y": -591.0959599068027
+      },
+      "caption": "",
+      "labels": [
+        "Case"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#9f0500"
+      }
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": -697.3806177693754,
+        "y": -591.0959599068027
+      },
+      "caption": "",
+      "labels": [
+        "Visit"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#d33115"
+      }
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": -48.18911713374621,
+        "y": -591.0959599068032
+      },
+      "caption": "",
+      "labels": [
+        "Stop"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#f44e3b"
+      }
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": -247.87115185982532,
+        "y": -936.9553894111019
+      },
+      "caption": "",
+      "labels": [
+        "Measurement",
+        "MiscMeas",
+        "NUMERIC"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#0062b1"
+      }
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": 297.67031237055414,
+        "y": -936.9553894111019
+      },
+      "caption": "",
+      "labels": [
+        "Order"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#808080"
+      }
+    },
+    {
+      "id": "n6",
+      "position": {
+        "x": -2.7331784447520704,
+        "y": -1457.2694982742614
+      },
+      "caption": "",
+      "labels": [
+        "Provider"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#666666"
+      }
+    },
+    {
+      "id": "n7",
+      "position": {
+        "x": 374.06392922131397,
+        "y": -1457.2694982742614
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#aea1ff"
+      }
+    },
+    {
+      "id": "n10",
+      "position": {
+        "x": -647.2352213119815,
+        "y": -1069.4908896282527
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Item"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n11",
+      "position": {
+        "x": -1149.9650224797815,
+        "y": -1131.707507579602
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "TextParam",
+        "Lookup"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n12",
+      "position": {
+        "x": -1617.7586461689039,
+        "y": -1131.707507579602
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "MiscMeasPRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n13",
+      "position": {
+        "x": -2047.1025555331248,
+        "y": -1131.707507579602
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "misc_meas_answers"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n14",
+      "position": {
+        "x": -1157.5696319691397,
+        "y": -1291.5480555459844
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Unit",
+        "CATEGORIZED"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n15",
+      "position": {
+        "x": -1617.7586461689039,
+        "y": -1291.5480555459844
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "UnitRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n16",
+      "position": {
+        "x": -2027.745895251633,
+        "y": -1291.5480555459844
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "UCUM"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n17",
+      "position": {
+        "x": -1157.5696319691397,
+        "y": -1513.6052214637161
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "MiscMeasIRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n18",
+      "position": {
+        "x": -1617.7586461689039,
+        "y": -1513.6052214637161
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "misc_meas_quest"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n19",
+      "position": {
+        "x": -320.3010146115406,
+        "y": -318.98406242900944
+      },
+      "caption": "",
+      "labels": [
+        "Measurement",
+        "LabSampling",
+        "EXISTENT"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#0062b1"
+      }
+    },
+    {
+      "id": "n20",
+      "position": {
+        "x": -729.318063786874,
+        "y": -332.73293618721357
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Item"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n21",
+      "position": {
+        "x": -1153.9064655623401,
+        "y": -332.73293618721266
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "LabSpecimenRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n22",
+      "position": {
+        "x": -697.3806177693754,
+        "y": -61.82675139538526
+      },
+      "caption": "",
+      "labels": [
+        "Measurement",
+        "LabTesting",
+        "NUMERIC",
+        "TEXTUAL"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#0062b1"
+      }
+    },
+    {
+      "id": "n23",
+      "position": {
+        "x": -1088.9106478948434,
+        "y": -61.82674329306076
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Item",
+        "CATEGORIZED"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n24",
+      "position": {
+        "x": -1558.1339100052874,
+        "y": -61.82675139538526
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "LabIRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n25",
+      "position": {
+        "x": -1558.1339100052874,
+        "y": 209.079433396441
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Param"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n26",
+      "position": {
+        "x": -1962.4675381866018,
+        "y": 209.079433396441
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "LabPRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n27",
+      "position": {
+        "x": -1558.1339100052874,
+        "y": -332.73293618721266
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "lab_specimen"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n28",
+      "position": {
+        "x": -1962.4675381866018,
+        "y": -61.82674329306076
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "meas_lab_quest"
+      ],
+      "properties": {},
+      "style": {
+        "label-position": "outside",
+        "border-color": "#653294",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n29",
+      "position": {
+        "x": -2320.317404077265,
+        "y": 209.079433396441
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "meas_lab_ans"
+      ],
+      "properties": {},
+      "style": {
+        "label-position": "outside",
+        "label-font-size": 15,
+        "border-color": "#653294"
+      }
+    },
+    {
+      "id": "n30",
+      "position": {
+        "x": 178.79181017902772,
+        "y": -200.6173812909525
+      },
+      "caption": "",
+      "labels": [
+        "Anchor"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#999999"
+      }
+    },
+    {
+      "id": "n31",
+      "position": {
+        "x": -337.52135115104136,
+        "y": -1457.2694982742614
+      },
+      "caption": "",
+      "labels": [
+        "Anchor"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#999999"
+      }
+    },
+    {
+      "id": "n32",
+      "position": {
+        "x": -1462.7775912501493,
+        "y": -1858.0207123779169
+      },
+      "caption": "",
+      "labels": [
+        "LocalDomain",
+        "MeasDom"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n33",
+      "position": {
+        "x": -1617.7586461689039,
+        "y": -1735.6623873814478
+      },
+      "caption": "",
+      "labels": [
+        "LocalClass",
+        "ItemCls"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n34",
+      "position": {
+        "x": -302.1095939113328,
+        "y": 166.38308063191528
+      },
+      "caption": "",
+      "labels": [
+        "Anchor"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#999999"
+      }
+    },
+    {
+      "id": "n35",
+      "position": {
+        "x": -968.2849698361182,
+        "y": -1557.845345947178
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Operator"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n36",
+      "position": {
+        "x": -1190.9923628299189,
+        "y": -1896.6095042237766
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "OperatorRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#009ce0"
+      }
+    },
+    {
+      "id": "n37",
+      "position": {
+        "x": -1144.6359694998896,
+        "y": -841.49286340279
+      },
+      "caption": "",
+      "labels": [
+        "RefComment"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294"
+      }
+    },
+    {
+      "id": "n38",
+      "position": {
+        "x": -1144.6359694998896,
+        "y": -990.0721102138524
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Flag",
+        "Lookup"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#73d8ff"
+      }
+    },
+    {
+      "id": "n39",
+      "position": {
+        "x": -1617.7586461689039,
+        "y": -971.8669596132193
+      },
+      "caption": "",
+      "labels": [],
+      "properties": {},
+      "style": {}
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n0",
+      "fromId": "n0",
+      "toId": "n1",
+      "type": "HAS_CASE",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n1",
+      "fromId": "n1",
+      "toId": "n2",
+      "type": "HAS_VIS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n2",
+      "fromId": "n2",
+      "toId": "n3",
+      "type": "HAS_STOP",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n3",
+      "fromId": "n3",
+      "toId": "n4",
+      "type": "HAS_MEAS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "fromId": "n3",
+      "toId": "n5",
+      "type": "HAS_ORDER",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n5",
+      "fromId": "n5",
+      "toId": "n6",
+      "type": "ORDERED_BY",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n6",
+      "fromId": "n5",
+      "toId": "n4",
+      "type": "ORDER_FOR",
+      "properties": {},
+      "style": {
+        "attachment-start": "normal",
+        "attachment-end": "normal",
+        "arrow-width": 2
+      }
+    },
+    {
+      "id": "n7",
+      "fromId": "n5",
+      "toId": "n7",
+      "type": "ORDER_THING",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n10",
+      "fromId": "n4",
+      "toId": "n10",
+      "type": "OF_ITEM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n11",
+      "fromId": "n10",
+      "toId": "n11",
+      "type": "HAS_POSS_PARAM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n12",
+      "fromId": "n11",
+      "toId": "n12",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n13",
+      "fromId": "n12",
+      "toId": "n13",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n14",
+      "fromId": "n10",
+      "toId": "n14",
+      "type": "HAS_POSS_UNIT",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n15",
+      "fromId": "n14",
+      "toId": "n15",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n16",
+      "fromId": "n15",
+      "toId": "n16",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n17",
+      "fromId": "n10",
+      "toId": "n17",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n18",
+      "fromId": "n17",
+      "toId": "n18",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n19",
+      "fromId": "n3",
+      "toId": "n19",
+      "type": "HAS_MEAS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n20",
+      "fromId": "n19",
+      "toId": "n20",
+      "type": "OF_ITEM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n21",
+      "fromId": "n20",
+      "toId": "n21",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n22",
+      "fromId": "n19",
+      "toId": "n22",
+      "type": "HAS_CONT",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n23",
+      "fromId": "n22",
+      "toId": "n23",
+      "type": "OF_ITEM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n24",
+      "fromId": "n23",
+      "toId": "n24",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n26",
+      "fromId": "n25",
+      "toId": "n26",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n27",
+      "fromId": "n21",
+      "toId": "n27",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n28",
+      "fromId": "n24",
+      "toId": "n28",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n29",
+      "fromId": "n23",
+      "toId": "n25",
+      "type": "HAS_POSS_PARAM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n30",
+      "fromId": "n26",
+      "toId": "n29",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n31",
+      "fromId": "n19",
+      "toId": "n30",
+      "type": "MEAS_CHARTED",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n32",
+      "fromId": "n4",
+      "toId": "n31",
+      "type": "MEAS_CHARTED",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n33",
+      "fromId": "n17",
+      "toId": "n32",
+      "type": "OF_DOM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n34",
+      "fromId": "n17",
+      "toId": "n33",
+      "type": "OF_CLS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n35",
+      "fromId": "n22",
+      "toId": "n34",
+      "type": "MEAS_CHARTED",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n36",
+      "fromId": "n10",
+      "toId": "n35",
+      "type": "HAS_POSS_OPR",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n37",
+      "fromId": "n35",
+      "toId": "n36",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n38",
+      "fromId": "n10",
+      "toId": "n37",
+      "type": "HAS_POSS_CMT",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n39",
+      "fromId": "n10",
+      "toId": "n38",
+      "type": "HAS_POSS_FLAG",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n40",
+      "fromId": "n38",
+      "toId": "n39",
+      "type": "BELONGS_TO",
+      "properties": {},
+      "style": {}
+    }
+  ],
+  "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
+    "background-image": "",
+    "background-size": "100%",
+    "node-color": "#ffffff",
+    "border-width": 4,
+    "border-color": "#000000",
+    "radius": 50,
+    "node-padding": 5,
+    "node-margin": 2,
+    "outside-position": "auto",
+    "node-icon-image": "",
+    "node-background-image": "",
+    "icon-position": "inside",
+    "icon-size": 64,
+    "caption-position": "inside",
+    "caption-max-width": 200,
+    "caption-color": "#000000",
+    "caption-font-size": 50,
+    "caption-font-weight": "normal",
+    "label-position": "inside",
+    "label-display": "pill",
+    "label-color": "#000000",
+    "label-background-color": "#ffffff",
+    "label-border-color": "#000000",
+    "label-border-width": 4,
+    "label-font-size": 40,
+    "label-padding": 5,
+    "label-margin": 4,
+    "directionality": "directed",
+    "detail-position": "inline",
+    "detail-orientation": "parallel",
+    "arrow-width": 5,
+    "arrow-color": "#000000",
+    "margin-start": 5,
+    "margin-end": 5,
+    "margin-peer": 20,
+    "attachment-start": "normal",
+    "attachment-end": "normal",
+    "relationship-icon-image": "",
+    "type-color": "#000000",
+    "type-background-color": "#ffffff",
+    "type-border-color": "#000000",
+    "type-border-width": 0,
+    "type-font-size": 16,
+    "type-padding": 5,
+    "property-position": "outside",
+    "property-alignment": "colon",
+    "property-color": "#000000",
+    "property-font-size": 16,
+    "property-font-weight": "normal"
+  }
+}

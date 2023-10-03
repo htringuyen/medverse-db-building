@@ -1,0 +1,472 @@
+{
+  "nodes": [
+    {
+      "id": "n0",
+      "position": {
+        "x": -291.5,
+        "y": -50.00000000000007
+      },
+      "caption": "",
+      "labels": [
+        "Patient"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#9f0500"
+      }
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": -24.5,
+        "y": -50
+      },
+      "caption": "",
+      "labels": [
+        "Case"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#9f0500"
+      }
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": 242.5,
+        "y": -50.000000000000036
+      },
+      "caption": "",
+      "labels": [
+        "Visit"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#d33115"
+      }
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": 509.50000000000006,
+        "y": -50
+      },
+      "caption": "Stop",
+      "labels": [],
+      "properties": {},
+      "style": {
+        "border-color": "#f44e3b"
+      }
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": 355.0363168252469,
+        "y": -317.53894718289416
+      },
+      "caption": "",
+      "labels": [
+        "DeviceExposure",
+        "TEXT_RES"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#0c797d"
+      }
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": 63.42548176175512,
+        "y": -317.5389471828941
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Item"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#68ccca"
+      }
+    },
+    {
+      "id": "n6",
+      "position": {
+        "x": -268.00819433146575,
+        "y": -317.53894718289416
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept",
+        "Param"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#68ccca"
+      }
+    },
+    {
+      "id": "n7",
+      "position": {
+        "x": -503.32412034763564,
+        "y": -317.53894718289416
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "MiscDvexpPRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#16a5a5"
+      }
+    },
+    {
+      "id": "n8",
+      "position": {
+        "x": -764.5704307388345,
+        "y": -317.53894718289416
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "miscel_dvexp_ans"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n9",
+      "position": {
+        "x": -361.03262346486594,
+        "y": -581.1196581760537
+      },
+      "caption": "",
+      "labels": [
+        "RefSet",
+        "MiscDvexpIRs"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#16a5a5"
+      }
+    },
+    {
+      "id": "n10",
+      "position": {
+        "x": -629.6722164256157,
+        "y": -736.218799486934
+      },
+      "caption": "",
+      "labels": [
+        "Concept",
+        "miscel_dvexp_quest"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#653294",
+        "label-position": "outside",
+        "label-font-size": 15
+      }
+    },
+    {
+      "id": "n11",
+      "position": {
+        "x": 63.42548176175512,
+        "y": -577.6741986893704
+      },
+      "caption": "",
+      "labels": [
+        "Anchor"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#999999"
+      }
+    },
+    {
+      "id": "n12",
+      "position": {
+        "x": 653.3900674551276,
+        "y": -300.91196862416325
+      },
+      "caption": "",
+      "labels": [
+        "Order"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#808080"
+      }
+    },
+    {
+      "id": "n13",
+      "position": {
+        "x": 540.7220376496729,
+        "y": -577.6741986893704
+      },
+      "caption": "",
+      "labels": [
+        "Provider"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#666666"
+      }
+    },
+    {
+      "id": "n14",
+      "position": {
+        "x": 858.7323447631403,
+        "y": -535.9835828227308
+      },
+      "caption": "",
+      "labels": [
+        "LocalConcept"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#aea1ff"
+      }
+    },
+    {
+      "id": "n15",
+      "position": {
+        "x": -721.768755987472,
+        "y": -535.9835828227308
+      },
+      "caption": "",
+      "labels": [
+        "LocalDom",
+        "DvexpDom"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#16a5a5"
+      }
+    },
+    {
+      "id": "n16",
+      "position": {
+        "x": -657.7878035223886,
+        "y": -50
+      },
+      "caption": "",
+      "labels": [
+        "LocalClass",
+        "ParamCls"
+      ],
+      "properties": {},
+      "style": {
+        "border-color": "#16a5a5"
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n0",
+      "fromId": "n0",
+      "toId": "n1",
+      "type": "HAS_CASE",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n1",
+      "fromId": "n1",
+      "toId": "n2",
+      "type": "HAS_VIS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n2",
+      "fromId": "n2",
+      "toId": "n3",
+      "type": "HAS_STOP",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n3",
+      "fromId": "n3",
+      "toId": "n4",
+      "type": "HAS_DV_EXPS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "fromId": "n4",
+      "toId": "n5",
+      "type": "OF_ITEM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n5",
+      "fromId": "n5",
+      "toId": "n6",
+      "type": "HAS_POSS_PARAM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n6",
+      "fromId": "n6",
+      "toId": "n7",
+      "type": "OF_RSET",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n7",
+      "fromId": "n7",
+      "toId": "n8",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n8",
+      "fromId": "n5",
+      "toId": "n9",
+      "type": "OF_RSET",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n9",
+      "fromId": "n9",
+      "toId": "n10",
+      "type": "REF_VOC",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n10",
+      "fromId": "n4",
+      "toId": "n11",
+      "type": "DVEXP_CHARTED",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n11",
+      "fromId": "n3",
+      "toId": "n12",
+      "type": "HAS_ORDER",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n12",
+      "fromId": "n12",
+      "toId": "n13",
+      "type": "ORDERED_BY",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n13",
+      "fromId": "n12",
+      "toId": "n14",
+      "type": "ORDER_THING",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n14",
+      "fromId": "n12",
+      "toId": "n4",
+      "type": "ORDER_FOR",
+      "properties": {},
+      "style": {
+        "arrow-color": "#000000",
+        "arrow-width": 2
+      }
+    },
+    {
+      "id": "n15",
+      "fromId": "n7",
+      "toId": "n15",
+      "type": "OF_DOM",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n16",
+      "fromId": "n7",
+      "toId": "n16",
+      "type": "OF_CLS",
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n17",
+      "fromId": "n9",
+      "toId": "n15",
+      "type": "OF_DOM",
+      "properties": {},
+      "style": {}
+    }
+  ],
+  "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
+    "background-image": "",
+    "background-size": "100%",
+    "node-color": "#ffffff",
+    "border-width": 4,
+    "border-color": "#000000",
+    "radius": 50,
+    "node-padding": 5,
+    "node-margin": 2,
+    "outside-position": "auto",
+    "node-icon-image": "",
+    "node-background-image": "",
+    "icon-position": "inside",
+    "icon-size": 64,
+    "caption-position": "inside",
+    "caption-max-width": 200,
+    "caption-color": "#000000",
+    "caption-font-size": 50,
+    "caption-font-weight": "normal",
+    "label-position": "inside",
+    "label-display": "pill",
+    "label-color": "#000000",
+    "label-background-color": "#ffffff",
+    "label-border-color": "#000000",
+    "label-border-width": 4,
+    "label-font-size": 40,
+    "label-padding": 5,
+    "label-margin": 4,
+    "directionality": "directed",
+    "detail-position": "inline",
+    "detail-orientation": "parallel",
+    "arrow-width": 5,
+    "arrow-color": "#000000",
+    "margin-start": 5,
+    "margin-end": 5,
+    "margin-peer": 20,
+    "attachment-start": "normal",
+    "attachment-end": "normal",
+    "relationship-icon-image": "",
+    "type-color": "#000000",
+    "type-background-color": "#ffffff",
+    "type-border-color": "#000000",
+    "type-border-width": 0,
+    "type-font-size": 16,
+    "type-padding": 5,
+    "property-position": "outside",
+    "property-alignment": "colon",
+    "property-color": "#000000",
+    "property-font-size": 16,
+    "property-font-weight": "normal"
+  }
+}

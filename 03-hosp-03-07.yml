@@ -1,0 +1,147 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/services.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (vis:Visit {id: row.hadm_id})
+          match (pa:Patient {id:toInteger(row.subject_id)})
+          with row, vis,
+               (datetime({epochmillis: apoc.date.parse(row.transfertime, 'ms', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears).epochSeconds as svEpoch
+          match (rs:RefSet {id: 1302})
+          match (lc:LocalConcept {id:rs.code + '|' + row.curr_service})
+          create (visInf:VisInfo:ServiceTransfer:EXISTENT)-[:OF_ITEM]->(lc)
+          create (vis)-[:HAS_VINF]->(visInf)
+          with row, visInf, svEpoch
+          merge (anc:Anchor {id:row.hadm_id + '-' + svEpoch})
+              on create
+              set anc.value = datetime({epochseconds: svEpoch})
+          create (visInf)-[:VINF_CHARTED]->(anc)
+      }
+
+
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/drgcodes.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (vis:Visit {id: row.hadm_id})
+          match (rs:RefSet {id:1502})
+          with row, vis, rs,
+              row.drg_type + '-' + row.drg_code as admrsn_code
+          merge (item:LocalConcept {id:rs.code + '|' + admrsn_code})
+              on create
+              set item:Item,
+                  item.code = admrsn_code,
+                  item.name = row.description,
+                  item.source = rs.reference
+      
+          // condition
+          with row, vis, item
+          create (cond:Condition:AdmReason:EXISTENT)-[:OF_ITEM]->(item)
+          set cond.severity = toInteger(row.drg_severity),
+              cond.mortality = toInteger(row.drg_mortality)
+          create (vis)-[:HAS_COND]->(cond)
+      }
+      
+
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/diagnoses_icd.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (vis:Visit {id:row.hadm_id}),
+                (rs:RefSet {id:1501})
+          with row, vis, rs,
+              case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as dx_code
+      
+          match (item:LocalConcept {id: rs.code + '|' + dx_code})
+      
+          create (cond:Condition:HospDx:EXISTENT)
+              set cond.priority = toInteger(row.seq_num)
+      
+          create (cond)-[:OF_ITEM]->(item)
+          create (vis)-[:HAS_COND]->(cond)
+      }
+        
+
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/procedures_icd.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (pa:Patient {id:toInteger(row.subject_id)})
+          match (vis:Visit {id:row.hadm_id})-[:VIS_STARTED]->(visStartAnc)
+      
+          with row, vis,
+              case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as proc_code,
+               date(row.chartdate) - pa.shiftedYears as chartdate
+      
+          match (rs:RefSet {id:1903})
+          match (lc:LocalConcept {id:rs.code + '|' + proc_code})
+      
+          create (proc:Procedure:BilledProc:EXISTENT)
+              set proc.priority = toInteger(row.seq_num),
+                  proc.chartDate = chartdate
+          create (proc)-[:OF_ITEM]->(lc)
+          create (vis)-[:HAS_PROC]->(proc)
+      }
+
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/hcpcsevents.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (pa:Patient {id:toInteger(row.subject_id)})
+          match (vis:Visit {id:row.hadm_id})
+      
+          with row, vis,
+              row.hcpcs_cd as proc_code,
+               datetime(row.chartdate) - pa.shiftedYears as chartdate
+      
+          match (rs:RefSet {id:1904})
+          match (lc:LocalConcept {id:rs.code + '|' + proc_code})
+      
+          create (proc:Procedure:BilledProc:EXISTENT)
+              set proc.priority = toInteger(row.seq_num),
+                  proc.chartDate = chartdate
+          create (proc)-[:OF_ITEM]->(lc)
+          create (vis)-[:HAS_PROC]->(proc)
+      }
+  
+  
+  
+
+
+
+

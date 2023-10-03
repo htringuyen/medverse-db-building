@@ -1,0 +1,149 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 13-emar-p4.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/emar.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      match (rxad:RxAdmin {id:row.emar_id})
+      set rxad.subjectId = toInteger(row.subject_id),
+          rxad.hadmId = toInteger(row.hadm_id)
+
+      with row, rxad,
+          datetime({epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+      match (chartAnc:Anchor {id:row.subject_id + "-" + charttime.epochSeconds})
+      match (flagRs:RefSet {id:2401})
+      match (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
+      match (drugRs:RefSet {id:2101})
+
+      with row, rxad, drugRs, chartAnc, flag
+      set rxad.valueFlag = flag.value
+      create (rxad)-[:RXAD_CHARTED]->(chartAnc)
+      create (rxad)-[HAS_EXPOSURE]->(rxexp:DrugExposure)
+
+      with row, drugRs, rxad, rxexp, charttime
+      optional match (era)-[:INCLUDES]->(rxad),
+                     (era)-[:TRACKING]->(med)
+      optional match (med)-[:HAS_RX]->(:MAIN)-[:OF_DRUG]->(mainDrug)
+      optional match (med)-[:HAS_RX]->(:BASE)-[:OF_DRUG]->(baseDrug)
+      optional match (matchedDrug:LocalConcept {id:drugRs.code + '|' + row.medication})
+
+      with row, rxad, charttime, rxexp, mainDrug, baseDrug, matchedDrug
+      foreach (ignore in case when mainDrug is not null and (row.medication = mainDrug.name or baseDrug is null) then [1] else [] end |
+          create (rxexp)-[:OF_DRUG]->(mainDrug)
+          set rxexp:MAIN
+      )
+
+      foreach (ignore in case when baseDrug is not null
+                                  and ((row.medication = baseDrug.name and row.medication <> mainDrug.name)
+                                      or row.medication is null or row.medication = '') then [1] else [] end |
+          create (rxexp)-[:OF_DRUG]->(baseDrug)
+          set rxexp:BASE
+      )
+
+      foreach (ignore in case when baseDrug is not null and mainDrug is not null and row.medication <> mainDrug.name
+                                  and row.medication <> baseDrug.name and matchedDrug is not null then [1] else [] end |
+          create (rxexp)-[:OF_DRUG]->(matchedDrug)
+          set rxexp:ADDITIVE
+      )
+
+      with row, rxexp
+      where row.mainDrug is null and row.baseDrug is null and row.matchedDrug is not null
+      create (rxexp)-[:OF_DRUG]->(matchedDrug)
+      set rxexp:MAIN
+
+  # 13-emar-p5.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/emar_detail.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      with row
+      where row.parent_field_ordinal is null or row.parent_field_ordinal = ""
+  
+      match (rxad:RxAdmin {id: row.emar_id})-[:HAS_EXPOSURE]->(exp)
+      match (adIRs: RefSet {id: 2104})
+      match (unitRs: RefSet {id: 2201})
+  
+      with row, rxad, exp, unitRs,
+          case when row.administration_type is not null and row.administration_type <> "" then rs.code + '|' + row.administration_type else "UNDEF|ITEM" end as ad_id
+      match (adItem: LocalConcept {id: ad_id})
+  
+      with row, rxad, exp, unitRs, adItem
+      optional match (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+  
+      with row, rxad, exp, adItem, unit
+      create (rxad)-[:OF_ITEM]->(adItem)
+      set exp.valueDose = toFloat(split(row.dose_due, '-')[0]),
+          exp.valueDoseUpto = toFloat(split(row.dose_due, '-')[1]),
+          exp.valueDUnit = unit.value
+  
+      with row, exp
+      where row.dose_due_unit =~ ".+/(h|H|min|MIN|Min).*"
+              or row.infusion_rate is not null and row.infusion_rate <> ""
+              or row.infusion_rate_unit is not null and row.infusion_rate_unit <> ""
+              or row.infusion_rate_adjustment is not null and row.infusion_rate_adjustment <> ""
+      set exp:INFUSION,
+          exp.priorInfRate = toFloat(split(row.prior_infusion_rate, "-")[0]),
+          exp.priorInfRateUpto = toFloat(split(row.prior_infusion_rate, "-")[1]),
+          exp.fromOpenBag = case when row.new_iv_bag_hung = "Y" then false else true end
+
+# preingest
+post_ingest:
+  # 13-emar-p6.cql
+  - |
+    call apoc.apoc.periodic.iterate(
+    "
+    match (rxad:RxAdmin)-[:RXAD_CHARTED]->(chartAnc)
+    where rxad.hadmId is not null
+    return rxad, chartAnc
+    "
+    ,
+    "
+    match (vis:Visit {id:toString(rxad.hadmId)})-[:HAS_STOP]->(stop),
+              (stop)-[:STOP_STARTED]->(stopStarted),
+              (stop)-[:STOP_ENDED]->(stopEnded)
+    where stopStarted.value <= chartAnc.value and stopEnded.value > chartAnc.value
+    
+    with rxad, stop
+    limit 1
+    create (stop)-[:HAS_RXAD]->(rxad)
+    remove rxad.hadmId, rxad.subjectId
+    "
+    ,
+    {batchSize:5000, parallel:true, concurrency:10}
+    )
+
+  # 13-emar-p7.cql
+  - |
+    call apoc.apoc.periodic.iterate(
+    "
+    match (rxad:RxAdmin)-[:RXAD_CHARTED]->(chartAnc)
+    where rxad.hadmId is null
+    return rxad, chartAnc
+    "
+    ,
+    "
+    match (pa:Patient {id:rxad.subjectId})-[:HAS_CASE]->(ca)-[:HAS_VIS]->(vis)-[:HAS_STOP]->(stop),
+              (stop)-[:STOP_STARTED]->(stopStarted),
+              (stop)-[:STOP_ENDED]->(stopEnded)
+    where stopStarted.value <= chartAnc.value and stopEnded.value > chartAnc.value
+    
+    with rxad, stop
+    limit 1
+    create (stop)-[:HAS_RXAD]->(rxad)
+    remove rxad.hadmId, rxad.subjectId
+    "
+    ,
+    {batchSize:5000, parallel:true, concurrency:10}
+    )
+    

@@ -1,0 +1,231 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # cep21-rxad_flag_emar.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_rxad_flag_emar.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (adIRs:RefSet {id:2104})
+          match (flagRs:RefSet {id:2401})
+          match (lvs:LookupValueSupplier {id:'otmv'})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          foreach(ignore in case when row.administration_type is not null and row.administration_type <> '' then [1] else [] end |
+              merge (adItem:LocalConcept {id:adIRs.code + '|' + row.administration_type})
+              set adItem:Item:CATEGORIZED,
+                adItem.category = "EMAR ADMINISTRATION",
+                adItem.code = row.administration_type,
+                adItem.name = row.administration_type,
+                adItem.source = "dataset::mimiciv/2.2/hosp/emar"
+              merge (adItem)-[:BELONGS_TO]->(adIRs)
+          )
+      
+      
+          foreach (ignore in case when row.event_txt is not null and row.event_txt <> '' then [1] else [0] end |
+              merge (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
+              set flag:Flag:CATEGORIZED:Lookup,
+                flag.value = lookupValue,
+                flag.flagDescription = "Administration Event",
+                flag.category = "Drug Administration",
+                flag.code = row.event_txt,
+                flag.name = row.event_txt,
+                flag.source = "dataset::mimiciv/2.2/hosp/emar"
+              merge (rs)-[:BELONGS_TO]->(flagRs)
+          )
+      
+          with row, adIRs, flagRs
+          where row.administration_type is not null and row.administration_type <> ''
+                and row.event_txt is not null and row.event_txt <> ''
+          match (adItem:LocalConcept {id:adIRs.code + '|' + row.administration_type})
+          match (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
+          merge (adItem)-[:HAS_POSS_FLAG]->(flag)
+      }
+      
+
+  # cep22-rxad_unit_emar.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_drug_unit_emar.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (drugRs:RefSet {id:2101})
+          match (unitRs:RefSet {id:2201})
+          match (lvs:LookupValueSupplier {id:'otmv'})
+      
+      
+          foreach(ignore in case when row.medication is not null and row.medication <> '' then [1] else [] end |
+              merge (drug:LocalConcept {id:drugRs.code + '|' + row.medication})
+                on create
+                set drug:Drug,
+                  drug.code = row.medication,
+                  drug.name = row.medication,
+                  drug.source = "dataset::mimiciv/2.2/hosp/emar"
+              merge (drug)-[:BELONGS_TO]->(drugRs)
+          )
+      
+          with row, unitRs, drugRs, lvs
+          where row.dose_due_unit is not null and row.dose_due_unit <> ''
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          with row, unitRs, drugRs, lookupValue
+          foreach (ignore in case when row.dose_due_unit is not null and row.dose_due_unit <> '' then [1] else [0] end |
+              merge (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+                on create
+                set unit:Unit:Lookup,
+                    unit.value = lookupValue,
+                    unit.code = row.dose_due_unit,
+                    unit.name = row.dose_due_unit,
+                    unit.source = "dataset::mimiciv/2.2/hosp/emar"
+              merge (unit)-[:BELONGS_TO]->(unitRs)
+          )
+      
+          with row, unitRs, drugRs
+          match (drug:LocalConcept {id:drugRs.code + '|' + row.medication})
+          match (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+          merge (drug)-[:HAS_POSS_UNIT]->(unit)
+      }
+      
+
+  # cep23-d_items_inputevents.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_items.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          with row
+          where row.linksto = "inputevents"
+          match (rs:RefSet {id:2101})
+          merge (drug:LocalConcept {id:rs.code + "|" + row.itemid})
+              on create
+              set drug:Drug:CATEGORIZED,
+                  drug.category = row.category,
+                  drug.code = row.itemid,
+                  drug.name = row.label,
+                  drug.source = "dataset::mimiciv/2.2/icu/d_items"
+      }
+
+
+  # cep24-drug_unit_inputevents.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_drug_unit_inputevents.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (drugRs:RefSet {id:2101})
+          match (drug:LocalConcept {id:drugRs.code + '|' + row.drug})
+          match (lvs:LookupValueSupplier {id:'otmv'})
+          match (unitRs:RefSet {id:2201})
+      
+          // create amount unit and link if possible
+          with drug, row, lvs, unitRs
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+          merge (amountUnit:LocalConcept {id:unitRs.code + '|' + row.amountuom})
+              on create
+              set amountUnit:Unit:Lookup,
+                  amountUnit.value = lookupValue,
+                  amountUnit.code = row.amountuom,
+                  amountUnit.name = row.amountuom,
+                  amountUnit.source = "dataset::mimiciv/2.2/icu/inputevents"
+          merge (amountUnit)-[:BELONGS_TO]->(unitRs)
+          merge (drug)-[:HAS_POSS_UNIT]->(amountUnit)
+      
+          // create rate unit and link if possible
+          with drug, row, lvs, unitRs
+          where row.rateuom is not null and row.rateuom <> ''
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+          merge (rateUnit:LocalConcept {id:unitRs.code + '|' + row.rateuom})
+              on create
+              set rateUnit:Unit:Lookup,
+                  rateUnit.value = lookupValue,
+                  rateUnit.code = row.rateuom,
+                  rateUnit.name = row.rateuom,
+                  rateUnit.source = "dataset::mimiciv/2.2/icu/inputevents"
+          merge (rateUnit)-[:BELONGS_TO]->(unitRs)
+          merge (drug)-[:HAS_POSS_UNIT]->(rateUnit)
+      }
+      
+
+  # cep25-rxad_flag_inputevents.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_rxad_flag_inputevents.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (adIRs:RefSet {id:2104})
+          match (flagRs:RefSet {id:2401})
+          match (lvs:LookupValueSupplier {id:'otmv'})
+      
+          with row, adIRs, flagRs, lvs
+          merge (adItem:LocalConcept {id:adIRs.code + '|' + row.ordercategorydescription})
+              on create
+              set adItem:Item:CATEGORIZED,
+                  adItem.category = "MetaVision ADMINISTRATION",
+                  adItem.code = row.ordercategorydescription,
+                  adItem.name = row.ordercategorydescription,
+                  adItem.source = "dataset::mimiciv/2.2/icu/inputevents"
+          merge (adItem)-[:BELONGS_TO]->(adIRs)
+      
+          with row, adItem, flagRs, lvs
+          where row.statusdescription is not null and row.statusdescription <> ''
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          merge (flag:LocalConcept {id:flagRs.code + '|' + row.statusdescription})
+              on create
+              set flag:Item:Lookup:CATEGORIZED,
+                  flag.value = lookupValue,
+                  flag.flagDescription = "Adminstration Status",
+                  flag.category = "Drug Administration",
+                  flag.code = row.statusdescription,
+                  flag.name = row.statusdescription,
+                  flag.source = "dataset::mimiciv/2.2/icu/inputevents"
+          merge (flag)-[:BELONGS_TO]->(flagRs)
+          merge (adItem)-[:HAS_POSS_FLAG]->(flag)
+      }
+      
+      
+    
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      

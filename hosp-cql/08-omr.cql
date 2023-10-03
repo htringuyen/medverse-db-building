@@ -1,0 +1,67 @@
+:auto
+profile
+LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/mimiciv/2.2/hosp/omr.csv" AS row
+call {
+    with row
+    match (pa:Patient {id: toInteger(row.subject_id)})-[:HAS_CASE]->(ca)
+    with row, ca,
+        datetime(row.chartdate) - pa.shiftedYears as charttime
+
+    optional match (ca)-[:HAS_VIS]->(vis),
+          (vis)-[:VIS_STARTED]->(startAnc:Anchor),
+          (vis)-[:VIS_ENDED]->(endAnc:Anchor)
+    where charttime >= datetime({epochSeconds: toInteger(split(startAnc.id, '-')[1])}) and
+          charttime <= datetime({epochSeconds: toInteger(split(endAnc.id, '-')[1])})
+    with row, ca, vis, charttime,
+        case when row.result_value contains '/' then split(row.result_value, '/') else [row.result_value] end as values,
+        case when row.result_value contains '/' then [' Systolic', ' Diastolic'] else [''] end as postfixes
+    limit 1
+    unwind range(0, size(values) - 1) as idx
+    with row, ca, vis, charttime, toFloat(values[idx]) as valuenum, row.result_name + postfixes[idx] as result_name
+    where valuenum is not null
+
+    match (rs:RefSet {id:1601})
+    merge (lc:LocalConcept {id: rs.code + '|' + result_name})
+        on create
+        set lc.code = result_name,
+            lc.name = result_name,
+            lc.source = "dataset::mimiciv/2.2/hosp/omr"
+    create (obs:Observation:MiscObs)-[:OF_ITEM]->(lc)
+    set obs:NUMERIC,
+        obs.valueNum = valuenum
+
+    with row, ca, vis, charttime, obs,
+        row.subject_id + '-' + charttime.epochSeconds as new_vis_id
+
+    foreach (ignore in case when vis is null then [1] else [] end |
+        merge (newVis:Visit {id: new_vis_id})
+            on create
+            set newVis:OUTPATIENT
+        merge (ca)-[:HAS_VIS]->(newVis)
+
+        merge (startAnc:Anchor {id: row.subject_id + '-' + charttime.epochSeconds})
+            on create
+            set startAnc.value = charttime
+        merge (endAnc:Anchor {id: row.subject_id + '-' + (charttime.epochSeconds + 86399)})
+            on create
+            set endAnc.value = charttime + duration({seconds: 86399})
+        merge (newVis)-[:VIS_STARTED]->(startAnc)
+        merge (newVis)-[:VIS_ENDED]->(endAnc)
+
+        merge (newVis)-[:HAS_OBS]->(obs)
+        merge (obs)-[:OBS_CHARTED]->(startAnc)
+
+        merge (newStop:Stop {id:new_vis_id})
+            on create
+            set newStop:NonStay
+
+        merge (newStop)-[:STOP_STARTED]->(startAnc)
+        merge (newStop)-[:STOP_ENDED]->(endAnc)
+    )
+
+    with row, ca, vis, charttime, obs
+    where vis is not null
+    match (vis)-[:VIS_STARTED]->(anc)
+    merge (obs)-[:OBS_CHARTED]->(anc)
+    merge (vis)-[:HAS_OBS]->(obs)
+} in transactions of 5000 rows
