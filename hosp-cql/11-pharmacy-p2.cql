@@ -19,7 +19,7 @@ call {
             then datetime({epochseconds: apoc.date.parse(row.stoptime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears
             else null
             end as endtime,
-        case when row.medication is not null and row.medication <> '' then true else false end as hasMainRx,
+        case when trim(row.medication) is not null and trim(row.medication) <> '' then true else false end as hasMainRx,
         case when row.frequency is not null and row.frequency <> '' then row.frequency else null end as frequency,
         case when row.disp_sched is not null and row.disp_sched <> '' then row.disp_sched else null end as disp_sched,
         case when row.infusion_type is not null and row.infusion_type <> '' then row.infusion_type else null end as infusion_type,
@@ -55,18 +55,12 @@ call {
 
     match (startAnc:Anchor {id: row.subject_id + '-' + starttime.epochSeconds})
     match (endAnc:Anchor {id: coalesce(row.subject_id + '-' + endtime.epochSeconds, "UNDEFINED_UPPER")})
+    match (vis:Visit {id:row.hadm_id})
 
     with row, lc, med, starttime, startAnc, endAnc
     create (med)-[:OF_ITEM]->(lc)
-    create (med)-[:MED_STARTED]->(startAnc)
-    create (med)-[:MED_ENDED]->(endAnc)
+    create (med)-[:STARTED]->(startAnc)
+    create (med)-[:ENDED]->(endAnc)
+    create (vis)-[:HAS_MED]->(med)
 
-    with row, med, starttime
-    match (vis:Visit {id:row.hadm_id})-[:HAS_STOP]->(stop),
-        (stop)-[:STOP_STARTED]->(startAnc),
-        (stop)-[:STOP_ENDED]->(endAnc)
-    where startAnc.value <= starttime and endAnc.value > starttime
-    with row, med, stop
-    limit 1
-    create (stop)-[:HAS_MED]->(med)
 } in transactions of 5000 rows

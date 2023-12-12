@@ -1,0 +1,52 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 21-omr-p1.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/omr_items.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (rs:RefSet {id:1701})
+          merge (lc:LocalConcept {id:rs.code + "|" + row.result_name})
+              on create
+              set lc.code = rs.code + "|" + row.result_name,
+                  lc.name = row.result_name,
+                  lc.source = "dataset::mimiciv/2.2/hosp/omr"
+      }
+      
+
+  # 21-omr-p2.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/omr.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (rs:RefSet {id:1701})
+      match (item:LocalConcept {id:rs.code + '|' + row.result_name})
+      match (pa:Patient {id:toInteger(row.subject_id)})
+  
+      with row, item,
+          date(row.chartdate) - pa.shiftedYears as chartdate
+  
+      match (pa:Patient {id:toInteger(row.subject_id)})-[:HAS_VISIT]->(vis),
+            (vis)-[:STARTED]->(visStart),
+            (vis)-[:ENDED]->(visEnd)
+      where date({date:visStart.value}) <= chartdate <= date({date:visEnd.value})
+      with row, item, vis
+      match (vis)-[:HAS_STOP]->(stop)-[:STARTED]->(stopStart)
+      with row, item, vis, stop, stopStart
+      order by stopStart.value
+      create (meas:Measurement:Miscellaneous:NUMERIC)
+          set meas.valueNum = toFloat(row.result_value)
+      create (stop)-[:HAS_MEAS]->(meas)
+      create (meas)-[:CHARTED]->(stopStart)
+      create (meas)-[:OF_ITEM]->(item)

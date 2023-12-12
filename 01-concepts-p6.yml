@@ -1,0 +1,132 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # cep29-d_items_outputevents.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_items.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          with row
+          where row.linksto = "outputevents"
+          match (rs:RefSet {id:1701})
+          merge (item:LocalConcept {id:rs.code + "|" + row.itemid})
+              on create
+              set item:Item:CATEGORIZED,
+                  item.category = row.category,
+                  item.code = row.itemid,
+                  item.name = row.label,
+                  item.source = "dataset::mimiciv/2.2/icu/d_items_outputevents"
+          merge (item)-[:BELONGS_TO]->(rs)
+      }
+      
+
+  # cep30-unit_outputevents.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_unit_outputevents.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (itemRs:RefSet {id:1901})
+          match (item:LocalConcept {id: itemRs.code + '|' + row.itemid})
+      
+          match (lvs:LookupValueSupplier {id:'otmv'})
+      
+          match (unitRs:RefSet {id:2201})
+      
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          with row, item, unitRs, lookupValue
+          merge (unit:LocalConcept {id: unitRs.code + '|' + row.valueuom})
+              on create
+              set unit:Unit:Lookup,
+                  unit.value = lookupValue,
+                  unit.code = row.valueuom,
+                  unit.name = row.valueuom,
+                  unit.source = "dataset::mimiciv/2.2/icu/d_items"
+          merge (unit)-[:BELONGS_TO]->(unitRs)
+          merge (item)-[:ASSOC_UNIT]->(unit)
+      }
+
+  # cep31-type_note.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_type_note.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (rs:RefSet {id:2501})
+          merge (lc:LocalConcept {id: rs.code + '|' + row.code})
+            on create
+            set lc:Item,
+                lc.code = row.code,
+                lc.name = row.name,
+                lc.source = "dataset::mimiciv/2.2/note/notetype"
+          merge (lc)-[:BELONGS_TO]->(rs)
+      }
+    
+
+  # cep32-codes_note.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_codes_note.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (rs:RefSet {id:2502})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.exam_code})
+            on create
+            set lc:Item,
+                lc.code = row.exam_code,
+                lc.name = row.exam_name,
+                lc.source = "dataset::mimiciv/2.2/note/radiologyterms"
+          merge (lc)-[:BELONGS_TO]->(rs)
+      }
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      

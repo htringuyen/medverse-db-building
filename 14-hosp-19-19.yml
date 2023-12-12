@@ -1,0 +1,26 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 19-discharge_note.cql
+  - url: file:///var/lib/neo4j/import/mimic-iv-note/2.2/note/discharge.csv
+    mode: async
+    thread_count: 10
+    chunk_size: 500
+    log_step: 40
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      match (rs:RefSet {id:2501})
+      match (item:LocalConcept {id:rs.code + '|' + row.note_type})
+      match (vis:Visit {id:row.hadm_id})
+
+      with row, item, vis,
+          datetime({epochseconds:apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+      create (note:Note {id:row.note_id})
+          set note:EraSummary,
+              note.chartTime = charttime,
+              note.text = row.text
+      create (vis)-[:HAS_NOTE]->(note)
+      create (note)-[:OF_ITEM]->(item)

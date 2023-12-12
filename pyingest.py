@@ -219,7 +219,7 @@ class LocalServer(object):
     # However it decreases performance greatly and it seems to be loading the data nevertheless
     # So I set the retry count to 1 so it actually does not take into considerations deadlocks
     async def run_cql_wrapper(self, session_index, cql, dict):
-        max_try_count, i, retry = 5, 0, True
+        max_try_count, i, retry = 10, 0, True
         while retry and i < max_try_count:
             try:
                 await self.run_cql(session_index, cql, dict)
@@ -298,8 +298,9 @@ async def main():
     server = LocalServer()
     server.pre_ingest()
     file_list = config['files']
-    for file in file_list:
-        await server.load_file(file)
+    if file_list is not None:
+        for file in file_list:
+            await server.load_file(file)
     server.post_ingest()
     await server.close()
     end = time.time()

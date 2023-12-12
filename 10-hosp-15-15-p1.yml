@@ -1,0 +1,151 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 15-chartevents-p1.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/chartevents_d_items.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+      
+          with row,
+              case when row.post_mappping is not null and row.post_mapping <> ""
+                  then row.post_mappping
+                  else row.domain
+              end as chart_domain
+      
+          with row, chart_domain,
+              case
+                  when chart_domain contains "Meas" then 1701
+                  when chart_domain = "Observation" then 1601
+                  when chart_domain = "Procedure" then 1901
+                  when chart_domain = "Device" then 1801
+                  when chart_domain = "Condition" then 1503
+              end as item_rs_id
+      
+          match (rs:RefSet {id: item_rs_id})
+      
+          with row, rs, chart_domain
+      
+          merge (lc:LocalConcept {id:rs.code + "|" + row.itemid})
+            on create
+            set lc:Item:CATEGORIZED,
+                lc.category = row.category,
+                lc.refRangeLower = toFloat(row.lownormalvalue),
+                lc.refRangeUpper = toFloat(row.highnormalvalue),
+                lc.code = row.itemid,
+                lc.name = row.label,
+                lc.source = "dataset::mimiciv/2.2/icu/chartevents"
+      
+          merge (lc)-[:BELONGS_TO]->(rs)
+      
+          merge (md:IngestMetadata {id:"chartevents|" + row.itemid})
+              on create
+              set md.chartDomain = chart_domain,
+                  md.itemRsCode = rs.code
+      }
+      
+
+  # 15-chartevents-p2.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/chartevents_textvals.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          with row
+          where row.value is not null and row.value <> ''
+          match (md:IngestMetadata {id:"chartevents|" + row.itemid})
+          match (item:LocalConcept {id:md.itemRsCode + '|' + row.itemid})
+      
+          with row, item, md,
+              case
+                  when md.chartDomain contains "Meas" then 1702
+                  when md.chartDomain = "Observation" then 1602
+                  when md.chartDomain = "Procedure" then 1902
+                  when md.chartDomain = "Device" then 1802
+                  when md.chartDomain = "Condition" then 1504
+              end as param_rs_id
+      
+          match (paramRs:RefSet {id:param_rs_id})
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          with row, item, md, paramRs, lookupValue
+          set md.paramRsCode = paramRs.code
+          merge (param:LocalConcept {id:paramRs.code + '|' + row.value})
+              on create
+              set param:TextParam:Lookup,
+                  param.value = lookupValue,
+                  param.code = row.value,
+                  param.name = row.value,
+                  param.source = "dataset::mimiciv/2.2/icu/chartevents"
+          merge (param)-[:BELONGS_TO]->(paramRs)
+          merge (item)-[:ASSOC_PARAM]->(param)
+      }
+            
+
+  # 15-chartevents-p3.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/chartevents_uom_flag.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (md:IngestMetadata {id:"chartevents|" + row.itemid})
+          match (item:LocalConcept {id:md.itemRsCode + '|' + row.itemid})
+      
+          with row, item
+          match (unitRs:RefSet {id:2201})
+          match (flagRs:RefSet {id:2401})
+          match (lvs: LookupValueSupplier {id: "otmv"})
+      
+          with row, item, unitRs, flagRs, lvs
+          where (row.valueuom is not null and row.valueuom <> '') or (row.warning = "1")
+      
+          match (flag:LocalConcept {id:flagRs.code + "|" + "warning"})
+          foreach (ignore in case when row.warning = '1' then [1] else [] end |
+              merge (item)-[:HAS_POSS_FLAG]->(flag)
+          )
+      
+          with row, item, unitRs, lvs
+          where row.valueuom is not null and row.valueuom <> ''
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+          merge (unit:LocalConcept {id:unitRs.code + "|" + row.valueuom})
+              on create
+              set unit:Unit:Lookup,
+                  unit.value = lookupValue,
+                  unit.code = row.valueuom,
+                  unit.name = row.valueuom,
+                  unit.source = "dataset::mimiciv/2.2/icu/chartevents"
+          merge (unit)-[:BELONGS_TO]->(unitRs)
+          merge (item)-[:ASSOC_UNIT]->(unit)
+      }
+              
+
+#  # 15-chartevents-p4.cql
+#  - url: file:///var/lib/neo4j/import/custom_partitions/chartevents_datetimes.csv
+#    mode: sync
+#    thread_count: 1
+#    chunk_size: 5000
+#    log_step: 200
+#    cql: |
+#      WITH $dict.rows as rows UNWIND rows as row
+#      match (pa:Patient {id:toInteger(row.subject_id)})
+#      with row,
+#          datetime({epochseconds:apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+#      merge (anc:Anchor {id:row.subject_id + '-' + charttime.epochSeconds})
+#          on create
+#          set anc.value = charttime

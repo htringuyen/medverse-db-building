@@ -4,18 +4,19 @@ LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/mimiciv/2.2/hosp/emar_d
 call {
     with row
     with row
-    where row.parent_field_ordinal is null or row.parent_field_ordinal = ""
+    where row.parent_field_ordinal is null or trim(row.parent_field_ordinal) = ""
 
-    match (rxad:RxAdmin {id: row.emar_id})-[:HAS_EXPOSURE]->(exp)
+    match (rxad:RxAdmin {id: row.emar_id})-[:HAS_SEQ]->(exp)
     match (adIRs: RefSet {id: 2104})
     match (unitRs: RefSet {id: 2201})
 
     with row, rxad, exp, unitRs,
-        case when row.administration_type is not null and row.administration_type <> "" then rs.code + '|' + row.administration_type else "UNDEF|ITEM" end as ad_id
+        case when trim(row.administration_type) is not null and trim(row.administration_type) <> ""
+                then adIRs.code + '|' + trim(row.administration_type) else adIRs.code + '|' + "UNKNOWN" end as ad_id
     match (adItem: LocalConcept {id: ad_id})
 
     with row, rxad, exp, unitRs, adItem
-    optional match (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+    optional match (unit:LocalConcept {id:unitRs.code + '|' + trim(row.dose_due_unit)})
 
     with row, rxad, exp, adItem, unit
     create (rxad)-[:OF_ITEM]->(adItem)

@@ -27,21 +27,39 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       match (pa:Patient {id:toInteger(row.subject_id)})
-      with row, pa
+      match (med:Medication {id:toInteger(row.pharmacy_id)})
+      with row, pa, med
       create (era:DrugEra {id:row.pharmacy_id})
       create (pa)-[:HAS_DRUG_ERA]->(era)
+      create (era)-[:RELATES_TO]->(med)
 
   # 13-emar-p3.cql
   - url: file:///var/lib/neo4j/import/custom_partitions/emar_eras.csv
-    mode: async
-    thread_count: 20
+    mode: sync
+    thread_count: 1
     chunk_size: 5000
     log_step: 200
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
-      create (rxad:RxAdmin:INSTANT {id: row.emar_id})
-      with row, rxad
-      where row.pharmacy_id is not null and row.pharmacy_id <> ""
+      with row,
+        toInteger(split(row.emar_id, '-')[0]) as subject_id
+      match (pa:Patient {id: subject_id})
+  
+      with row, pa,
+           datetime({epochseconds: toInteger(row.chartepoch)}) - pa.shiftedYears as charttime
+  
+      create (rxad:RxAdmin {id: row.emar_id})
+  
+      with row, rxad, charttime
+      //where row.pharmacy_id is not null and row.pharmacy_id <> ""
       match (era:DrugEra {id: row.pharmacy_id})
+      with rxad, era
       create (era)-[:INCLUDES]->(rxad)
   
+
+
+
+
+
+
+

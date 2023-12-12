@@ -1,21 +1,18 @@
 :auto
 profile
-LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/custom_partitions/inputevents_rxad_eras.csv" AS row
+LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/custom_partitions/inputevents_datetimes.csv" AS row
 call {
     with row
     match (pa:Patient {id:toInteger(row.subject_id)})
-    create (rxad:RxAdmin {id: row.orderid})
+    with pa, row,
+          datetime({epochseconds:apoc.date.parse(row.starttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as starttime,
+          datetime({epochseconds:apoc.date.parse(row.endtime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as endtime
 
-    foreach (ignore in case when row.orderid = row.linkorderid then [1] else [] end |
-        create (era:DrugEra {id: row.orderid})
-        create (era)-[:INCLUDES]->(rxad)
-        create (pa)-[:HAS_DRUG_ERA]->(era)
-        set era.subjectId = toInteger(row.subject_id)
-    )
+    merge (startAnc:Anchor {id:row.subject_id + "-" + starttime.epochSeconds})
+        on create
+        set startAnc.value = starttime
 
-    with row, rxad
-    where row.linkorderid <> row.orderid
-    match (era)-[:INCLUDES]->(prevRxad: RxAdmin {id: row.linkorderid})
-    create (prevRxad)-[:HAS_CONT]->(rxad)
-    create (era)-[:INCLUDES]->(rxad)
+    merge (endAnc:Anchor {id:row.subject_id + "-" + endtime.epochSeconds})
+        on create
+        set endAnc.value = endtime
 }

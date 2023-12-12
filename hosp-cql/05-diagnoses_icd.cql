@@ -10,7 +10,7 @@ call {
 
     match (item:LocalConcept {id: rs.code + '|' + dx_code})
 
-    create (cond:Condition:HospDx:EXISTENT)
+    create (cond:Condition:HospDx:Billing:EXISTENT)
         set cond.priority = toInteger(row.seq_num)
 
     create (cond)-[:OF_ITEM]->(item)

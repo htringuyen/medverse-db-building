@@ -14,120 +14,96 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        with row
-        where row.spec_itemid is not null and row.spec_itemid <> '' and row.spec_type_desc is not null and row.spec_type_desc <> ''
-    
-        match (rs:RefSet {id:1710})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.spec_itemid})
-        set lc:Item,
-            lc.code = row.spec_itemid,
-            lc.name = row.spec_type_desc,
-            lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
-        merge (lc)-[:BELONGS_TO]->(rs)
-      }
-
-  # cep15-micro_abx.cql
-  - url: file:///var/lib/neo4j/import/concepts/d_micro_abx.csv
-    mode: sync
-    thread_count: 1
-    field_separator:
-    chunk_size: 5000
-    log_step: 1
-    cql: |
-      WITH $dict.rows as rows UNWIND rows as row
-      call {
-        with row
-        with row
-        where row.ab_itemid is not null and row.ab_itemid <> '' and row.ab_name is not null and row.ab_name <> ''
-    
-        match (rs:RefSet {id:1708})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.ab_itemid})
-        set lc:Item,
-            lc.code = row.ab_itemid,
-            lc.name = row.ab_name,
-            lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
-        merge (lc)-[:BELONGS_TO]->(rs)
-      }
-
-  # cep16-micro_organs.cql
-  - url: file:///var/lib/neo4j/import/concepts/d_micro_organs.csv
-    mode: sync
-    thread_count: 1
-    field_separator:
-    chunk_size: 5000
-    log_step: 1
-    cql: |
-      WITH $dict.rows as rows UNWIND rows as row
-      call {
-        with row
-        with row
-        where row.org_itemid is not null and row.org_itemid <> '' and row.org_name is not null and row.org_name <> ''
-    
-        // get lookup value supplier
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-    
-        match (rs:RefSet {id:1707})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.org_itemid})
-        set lc:TextParam:Lookup,
-            lc.value = lookupValue,
-            lc.code = row.org_itemid,
-            lc.name = row.org_name,
-            lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
-        merge (lc)-[:BELONGS_TO]->(rs)
-      }
-        
-  # cep17-micro_resistance.cql
-  - url: file:///var/lib/neo4j/import/concepts/d_micro_resistance.csv
-    mode: sync
-    thread_count: 1
-    field_separator:
-    chunk_size: 5000
-    log_step: 1
-    cql: |
-      WITH $dict.rows as rows UNWIND rows as row
-      call {
-        with row
-        with row
-        where row.interpretation is not null and row.interpretation <> ''
-    
-        // get lookup value supplier
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-    
-        match (rs:RefSet {id:1709})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.interpretation})
-        set lc:TextParam:Lookup,
-            lc.value = lookupValue,
-            lc.code = row.interpretation,
-            lc.name = row.interpretation,
-            lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
-        merge (lc)-[:BELONGS_TO]->(rs)
-      }
-
-  # cep18-micro_orgtests.cql
-  - url: file:///var/lib/neo4j/import/concepts/d_micro_orgtests.csv
-    mode: sync
-    thread_count: 1
-    field_separator:
-    chunk_size: 5000
-    log_step: 1
-    cql: |
-      WITH $dict.rows as rows UNWIND rows as row
-      call {
           with row
           with row
-          where row.test_itemid is not null and row.test_itemid <> '' 
-                and row.test_name is not null and row.test_name <> ''
+          where row.spec_itemid is not null and row.spec_itemid <> '' and row.spec_type_desc is not null and row.spec_type_desc <> ''
       
-          // get lookup value supplier
-          match (rs:RefSet {id:1706})
-          merge (lc:LocalConcept {id:rs.code + '|' + row.test_itemid})
+          match (rs:RefSet {id:1710})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.spec_itemid})
           set lc:Item,
-              lc.code = row.test_itemid,
-              lc.name = row.test_name,
+              lc.code = row.spec_itemid,
+              lc.name = row.spec_type_desc,
               lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
           merge (lc)-[:BELONGS_TO]->(rs)
       }
-        
+
+  # cep15-micro_test_org.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_micro_test_org.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          with row
+          where row.test_itemid is not null and row.test_itemid <> ''
+                and row.test_name is not null and row.test_name <> ''
+      
+          match (rs:RefSet {id:1706})
+          merge (item:LocalConcept {id:rs.code + '|' + row.test_itemid})
+              on create
+              set item:Item,
+                  item.code = row.test_itemid,
+                  item.name = row.test_name,
+                  item.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
+          merge (item)-[:BELONGS_TO]->(rs)
+      
+          // link item to possible param
+          with row, item
+          where row.org_itemid is not null and row.org_itemid <> ''
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          match (rs:RefSet {id:1707})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.org_itemid})
+          set lc:TextParam:Lookup,
+              lc.value = lookupValue,
+              lc.code = row.org_itemid,
+              lc.name = row.org_name,
+              lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
+          merge (lc)-[:BELONGS_TO]->(rs)
+          merge (item)-[:ASSOC_PARAM]->(lc)
+      }
+
+  # cep16-micro_test_abx.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_micro_test_abx.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          with row
+          where row.ab_itemid is not null and row.ab_itemid <> '' and row.ab_name is not null and row.ab_name <> ''
+      
+          match (rs:RefSet {id:1708})
+          merge (item:LocalConcept {id:rs.code + '|' + row.ab_itemid})
+          set item:Item,
+              item.code = row.ab_itemid,
+              item.name = row.ab_name,
+              item.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
+          merge (item)-[:BELONGS_TO]->(rs)
+      
+          // link item to possible param
+          with row, item
+          where row.interpretation is not null and row.interpretation <> ''
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          match (rs:RefSet {id:1709})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.interpretation})
+              on create
+              set lc:TextParam:Lookup,
+                  lc.value = lookupValue,
+                  lc.code = row.interpretation,
+                  lc.name = row.interpretation,
+                  lc.source = "dataset::mimiciv/2.2/hosp/microbiologyevents"
+          merge (lc)-[:BELONGS_TO]->(rs)
+          merge (item)-[:ASSOC_PARAM]->(lc)
+      }

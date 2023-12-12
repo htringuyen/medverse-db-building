@@ -1,3 +1,6 @@
+/* for IngestMetadata */
+create constraint ingest_metadata_id_key if not exists for (n:IngestMetadata) require n.id is node key;
+
 /* for Patient */
 CREATE CONSTRAINT patient_id_key IF NOT EXISTS FOR (n:Patient) REQUIRE n.id is node key;
 CREATE CONSTRAINT patient_id_type IF NOT EXISTS FOR (n:Patient) REQUIRE n.id is ::integer;
@@ -9,6 +12,10 @@ create constraint patient_last_name_exists if not exists for (n:Patient) require
 create constraint patient_last_name_type if not exists for (n:Patient) require n.lastName is ::string;
 create constraint patient_shifted_years_exists if not exists for (n:Patient) require n.shiftedYears is not null;
 create constraint patient_shifted_years_type if not exists for (n:Patient) require n.shiftedYears is ::duration;
+
+/* for Timeline */
+create constraint timeline_id_key if not exists for (n:Timeline) require n.id is node key;
+create constraint timeline_id_type if not exists for (n:Timeline) require n.id is ::string;
 
 /* for RefSet */
 CREATE CONSTRAINT ref_set_id_key if not exists for (n:RefSet) require n.id is node key;
@@ -53,15 +60,16 @@ create constraint local_concept_source_type if not exists for (n:LocalConcept) r
 /* for EXISTENT */
   // TODO
 create constraint existent_value_comment if not exists for (n:EXISTENT) require n.valueComment is ::integer;
-create constraint existent_value_flag1_type if not exists for (n:EXISTENT) require n.valueFlag1 is ::integer;
-create constraint existent_value_flag2_type if not exists for (n:EXISTENT) require n.valueFlag2 is ::integer;
+create constraint existent_value_flag1_type if not exists for (n:EXISTENT) require n.valueFlag is ::integer;
+create constraint existent_value_flag2_type if not exists for (n:EXISTENT) require n.value2ndFlag is ::integer;
 
 /* for TEXTUAL */
+create index textual_value_text_index if not exists for (n:TEXTUAL) on (n.valueText);
 create constraint textual_value_text_exists if not exists for (n:TEXTUAL) require n.valueText is not null;
 create constraint textual_value_text_type if not exists for (n:TEXTUAL) require n.valueText is ::integer;
 create constraint textual_value_comment if not exists for (n:TEXTUAL) require n.valueComment is ::integer;
-create constraint textual_value_flag1_type if not exists for (n:TEXTUAL) require n.valueFlag1 is ::integer;
-create constraint textual_value_flag2_type if not exists for (n:TEXTUAL) require n.valueFlag2 is ::integer;
+create constraint textual_value_flag1_type if not exists for (n:TEXTUAL) require n.valueFlag is ::integer;
+create constraint textual_value_flag2_type if not exists for (n:TEXTUAL) require n.value2ndFlag is ::integer;
 
 
 /* for NUMERIC */
@@ -70,9 +78,15 @@ create constraint numeric_value_num_type if not exists for (n:NUMERIC) require n
 create constraint numeric_value_unit_type if not exists for (n:NUMERIC) require n.valueUnit is ::integer;
 create constraint numeric_value_opr_type if not exists for (n:NUMERIC) require n.valueOpr is ::integer;
 create constraint numeric_value_cmt_type if not exists for (n:NUMERIC) require n.valueCmt is ::integer;
-create constraint numeric_value_flag1_type if not exists for (n:NUMERIC) require n.valueFlag1 is ::integer;
-create constraint numeric_value_flag2_type if not exists for (n:NUMERIC) require n.valueFlag2 is ::integer;
+create constraint numeric_value_flag1_type if not exists for (n:NUMERIC) require n.valueFlag is ::integer;
+create constraint numeric_value_flag2_type if not exists for (n:NUMERIC) require n.value2ndFlag is ::integer;
 
+/* for DATETIME */
+create constraint temporal_value_date_exists if not exists for (n:DATETIME) require n.valueTime is not null;
+create constraint temporal_value_date_type if not exists for (n:DATETIME) require n.valueTime is ::ZONED DATETIME;
+create constraint temporal_value_unit_type if not exists for (n:DATETIME) require n.valueUnit is ::integer;
+create constraint textual_value_flag1_type if not exists for (n:DATETIME) require n.valueFlag is ::integer;
+create constraint textual_value_flag2_type if not exists for (n:DATETIME) require n.value2ndFlag is ::integer;
 
 /* for Item */
 create constraint item_desc_numeric if not exists for (n:Item) require n.descNumeric is ::string;
@@ -150,6 +164,11 @@ create constraint hospdx_priority_type if not exists for (n:HospDx) require n.pr
 /* for EmergDx */
 create constraint emergdx_priority_exists if not exists for (n:EmergDx) require n.priority is not null;
 create constraint emergdx_priority_type if not exists for (n:EmergDx) require n.priority is ::integer;
+
+/* for ProcedureEra */
+create constraint procedure_era_id_key if not exists for (n:ProcedureEra) require n.id is node key;
+create constraint procedure_era_id_type if not exists for (n:ProcedureEra) require n.id is ::string;
+
 
 /* for BilledProc */
 create constraint billed_proc_priority_exists if not exists for (n:BilledProc) require n.priority is not null;
@@ -242,6 +261,24 @@ create constraint infusion_original_inf_amount_type if not exists for (n:INFUSIO
 /* for DrugEra*/
 create constraint drug_era_id_key if not exists for (n:DrugEra) require n.id is node key;
 create constraint drug_era_id_type if not exists for (n:DrugEra) require n.id is ::string;
+
+/* for Note */
+create constraint note_id_key if not exists for (n:Note) require n.id is node key;
+create constraint note_id_type if not exists for (n:Note) require n.id is ::string;
+create constraint note_chart_time_exists if not exists for (n:Note) require n.chartTime is not null;
+create constraint note_time_type if not exists for (n:Note) require n.chartTime is ::ZONED DATETIME;
+create constraint note_exists if not exists for (n:Note) require n.text is not null;
+create constraint note_type if not exists for (n:Note) require n.text is ::string;
+
+/* for EraSummary */
+
+/* for EventReport */
+
+/* for ExtractedTerm */
+create constraint extraction_id_key if not exists for (n:Extraction) require n.id is node key;
+create constraint extraction_id_type if not exists for (n:Extraction) require n.id is ::string;
+create constraint extraction_mapping_code_type if not exists for (n:Extraction) require n.mappingCode is ::string;
+create constraint extraction_mapping_code_system_type if not exists for (n:Extraction) require n.mappingCodeSystem is ::string;
 
 
 

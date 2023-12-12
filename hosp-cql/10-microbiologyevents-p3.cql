@@ -1,86 +1,60 @@
 :auto
 profile
-LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/mimiciv/2.2/hosp/microbiologyevents.csv" AS row
+match (ms:MicroSampling)-[:CHARTED]->(chartedAnc)
+where not exists (()-[:HAS_MEAS]->(ms))
 call {
-    with row
-    match (ms:MicroSampling {specimenId: toInteger(row.specimen_id)})-[:MEAS_CHARTED]->(chartedAnc)
-    match (rs:RefSet {id: 1706})
-    match (orgItem:LocalConcept {id: rs.code + '|' + row.test_itemid})
-    with row, ms, orgItem, chartedAnc,
-        case when row.org_itemid is not null then row.micro_specimen_id + '-' + row.test_itemid + '-' + row.org_itemid
-        else row.micro_specimen_id + '-' + row.test_itemid + '-' + '00000' end as testId
+    with ms, chartedAnc
+    optional match (pa:Patient {id:ms.subjectId})-[:HAS_VISIT]->()-[:HAS_STOP]->(stop),
+                   (stop)-[:STARTED]->(startAnc),
+                   (stop)-[:ENDED]->(endAnc)
+    where (startAnc.value <= chartedAnc.value < endAnc.value)
+        or ((not ms.hasChartTime) and ( date({date:startAnc.value}) = date({date:chartedAnc.value})
+                    or date({date:endAnc.value}) = date({date:chartedAnc.value}) ) )
+/// ----------------
+    with ms, chartedAnc, stop
 
-    merge (mt:OrgTesting {testId: testId})
+    limit 1 // check point
+
+    foreach (ignore in case when stop is not null then [1] else [] end |
+        create (stop)-[:HAS_MEAS]->(ms)
+    )
+
+    with ms, chartedAnc
+    where stop is null
+
+    match (pa:Patient {id: ms.subjectId})
+
+    with ms, chartedAnc, pa
+
+    // create visit and stop
+    merge (vis:Visit {id:ms.subjectId + "-" + chartedAnc.value.epochSeconds})
+      on create
+      set vis:OUTPATIENT,
+          vis.newCreated = true
+    merge (stop:Stop {id:ms.subjectId + "-" + chartedAnc.value.epochSeconds})
         on create
-        set mt.sampleSeq = toInteger(row.test_seq)
+        set stop:NonStay
 
-    merge (ms)-[:HAS_CONT]->(mt)
-    merge (mt)-[:MEAS_CHARTED]->(chartedAnc)
-    merge (mt)-[:OF_ITEM]->(orgItem)
+    // link to meas
+    merge (stop)-[:HAS_MEAS]->(ms)
 
-    with row, mt, chartedAnc
-    match (rs:RefSet {id:1707})
-    optional match (orgParam:LocalConcept {id: rs.code + '|' + row.org_itemid})
-    optional match (cmt:RefComment {id: row.comments})
+    with ms, chartedAnc, pa, vis, stop
+    where vis.newCreated is not null
 
-    with row, mt, orgParam, cmt, chartedAnc
-    foreach (ignore in case when orgParam is not null then [1] else [] end |
-        set mt:TEXTUAL,
-            mt.valueText = orgParam.value
-    )
-    foreach (ignore in case when cmt is not null then [1] else [] end |
-        set mt.valueCmt = cmt.value
-    )
+    // create start and end anchors
+    match (startAnc:Anchor {id:ms.subjectId + "-" + chartedAnc.value.epochSeconds})
 
-    with row, mt, chartedAnc,
-        case when row.isolate_num is not null and row.isolate_num <> "" then toInteger(row.isolate_num) else null end as isolate_num,
-        case when row.quantity is not null and row.quantity <> "" then row.quantity else null end as quantity,
-        case when row.dilution_comparison = "=>" then ">=" else row.dilution_comparison end as dilution_comparison
-    where row.ab_itemid is not null and row.ab_itemid <> ''
+    merge (endAnc:Anchor {id:ms.subjectId + "-" + (chartedAnc.value.epochSeconds + 60)})
+      on create
+      set endAnc.value = chartedAnc.value + duration({seconds: 60})
 
-    match (abxIRs:RefSet {id:1708})
-    match (abxPRs:RefSet {id:1709})
-    match (oprRs:RefSet {id:2301})
-    match (abxItem:LocalConcept {id: abxIRs.code + '|' + row.ab_itemid})
-    optional match (abxOpr:LocalConcept {id: oprRs.code + '|' + row.dilution_comparison})
-    optional match (abxParam:LocalConcept {id: abxPRs.code + '|' + row.interpretation})
+    with ms, vis, stop, startAnc, endAnc, pa
 
-    with row, mt, chartedAnc, isolate_num, quantity, abxItem, abxOpr, abxParam
-
-    create (abxTest:AbxTesting:Measurement)
-    set abxTest.isolateNum = isolate_num,
-        abxTest.quantity = quantity
-    create (abxTest)-[:MEAS_CHARTED]->(chartedAnc)
-    create (abxTest)-[:OF_ITEM]->(abxItem)
-    create (mt)-[:HAS_CONT]->(abxTest)
-
-    foreach (ignore in case when row.dilution_value is not null and row.dilution_value <> "" then [1] else [] end |
-        set abxTest:NUMERIC,
-            abxTest.valueNum = toFloat(row.dilution_value),
-            abxTest.valueOpr = abxOpr.value
-    )
-
-    foreach (ignore in case when abxParam is not null then [1] else [] end |
-        set abxTest:TEXTUAL,
-            abxTest.valueText = abxParam.value
-    )
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    remove vis.newCreated
+    create (pa)-[:HAS_VISIT]->(vis)
+    create (vis)-[:HAS_STOP]->(stop)
+    create (vis)-[:STARTED]->(startAnc)
+    create (vis)-[:ENDED]->(endAnc)
+    create (stop)-[:STARTED]->(startAnc)
+    create (stop)-[:ENDED]->(endAnc)
+} in transactions of 5000 rows

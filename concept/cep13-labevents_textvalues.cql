@@ -5,7 +5,7 @@ call {
     with row
     where row.value is not null and row.value <> ''
         and ((not row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D*')
-            or (row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D+' and (row.valueuom is null or row.valueuom = '')))
+            or (row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D+' and (trim(row.valueuom) is null or trim(row.valueuom) = '')))
     match (lvs: LookupValueSupplier {id: "otmv"})
     call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
     // extract text param
@@ -22,5 +22,5 @@ call {
     with lc, row
     match (rs:RefSet {id: 1704})
     match (item:LocalConcept {id:rs.code + '|' + row.itemid})
-    merge (item)-[:HAS_POSS_PARAM]->(lc)
+    merge (item)-[:ASSOC_PARAM]->(lc)
 }

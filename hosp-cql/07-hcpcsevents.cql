@@ -13,7 +13,7 @@ call {
     match (rs:RefSet {id:1904})
     match (lc:LocalConcept {id:rs.code + '|' + proc_code})
 
-    create (proc:Procedure:BilledProc:EXISTENT)
+    create (proc:Procedure:Billing:EXISTENT)
         set proc.priority = toInteger(row.seq_num),
             proc.chartDate = chartdate
     create (proc)-[:OF_ITEM]->(lc)

@@ -1,0 +1,78 @@
+:auto
+profile
+LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/mimiciv/2.2/icu/chartevents.csv" AS row
+with row limit 20000
+
+call {
+    with row
+    match (pa:Patient {id:toInteger(row.subject_id)})
+    match (md:IngestMetadata {id:"chartevents|" + row.itemid})
+
+    with row, md.chartDomain as chartDomain, md.itemRsCode as itemRsCode, md.paramRsCode as paramRsCode,
+        datetime({epochseconds:apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime,
+        case
+            when md.chartDomain contains "Meas" then ["Measurement", "Miscellaneous"]
+            when md.chartDomain = "Condition" then ["Condition", "Miscellaneous"]
+            when md.chartDomain = "Device" then ["DeviceExposure", "Miscellaneous"]
+            when md.chartDomain = "Procedure" then ["Procedure", "Miscellaneous"]
+            when md.chartDomain = "Observation" then ["Observation", "Miscellaneous"]
+        end as event_labels,
+        case when row.warning = "1" then "warning" else null end as flag_code,
+        case when row.valueuom is not null and row.valueuom <> '' then row.valueuom else null end as unit_code,
+        case when (row.valuenum is null or row.valuenum = '') and row.value is not null and row.value <> "" then row.value else null end as param_code
+
+    match (chartAnc:Anchor {id:row.subject_id + "-" + charttime.epochSeconds})
+
+    match (item:LocalConcept {id: itemRsCode + "|" + row.itemid})
+
+    match (unitRs:RefSet {id:2201})
+    match (flagRs:RefSet {id:2401})
+
+    with row, item, chartAnc, charttime, event_labels,
+        case when unit_code is not null then unitRs.code + '|' + unit_code else "UNDEF|ALL" end as unit_id,
+        case when flag_code is not null then flagRs.code + '|' + flag_code else "UNDEF|ALL" end as flag_id,
+        case when param_code is not null and paramRsCode is not null then paramRsCode + '|' + param_code else "UNDEF|ALL" end as param_id
+
+    with row, item, chartAnc, charttime, event_labels, unit_id, flag_id, param_id
+
+    match (unit:LocalConcept {id:unit_id})
+    match (flag:LocalConcept {id:flag_id})
+    match (param:LocalConcept {id:param_id})
+
+    with row, item, chartAnc, event_labels, charttime,
+        case when unit.value <> 0 then unit.value else null end as unit_value,
+        case when flag.value <> 0 then flag.value else null end as flag_value,
+        case when param.value <> 0 then param.value else null end as param_value
+    with row, item, chartAnc, charttime, event_labels, unit_value, flag_value, param_value,
+        case
+            when row.valuenum is not null and row.valuenum <> ''
+                    then {add_label:"NUMERIC", pros:{valueNum:toFloat(row.valuenum), valueUnit:unit_value, valueFlag:flag_value}}
+            when param is not null then {add_label:"TEXTUAL", pros:{valueText:param_value, valueFlag:flag_value}}
+            else {add_label:"EXISTENT", pros:{valueFlag:flag_value}}
+        end as map
+
+    call apoc.create.node(event_labels + map.add_label, map.pros) yield node as event
+    create (event)-[:OF_ITEM]->(item)
+    create (event)-[:CHARTED]->(chartAnc)
+
+    with row, charttime, event
+
+    match (vis)-[:HAS_STOP]->(stop:Stop {id:row.stay_id}),
+          (stop)-[:STARTED]->(stopStarted),
+          (stop)-[:ENDED]->(stopEnded)
+
+    with row, charttime, event, vis, stop, stopStarted, stopEnded
+
+    foreach (ignore in case when stopStarted.value <= charttime < stopEnded.value then [1] else [] end |
+        create (stop)-[:HAS_RECORD]->(event)
+    )
+
+    with row, charttime, event, vis
+    where not (stopStarted.value <= charttime < stopEnded.value)
+    match (vis)-[:HAS_STOP]->(stop),
+          (stop)-[:STARTED]->(stopStarted),
+          (stop)-[:ENDED]->(stopEnded)
+    where stopStarted.value <= charttime < stopEnded.value
+    with event, stop
+    create (stop)-[:HAS_RECORD]->(event)
+} in transactions of 5000 rows

@@ -1,0 +1,167 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 14-inputevents-p1.cql
+#  - url: file:///var/lib/neo4j/import/custom_partitions/inputevents_datetimes.csv
+#    mode: sync
+#    thread_count: 1
+#    chunk_size: 10000
+#    log_step: 200
+#    cql: |
+#      WITH $dict.rows as rows UNWIND rows as row
+#      match (pa:Patient {id:toInteger(row.subject_id)})
+#      with pa, row,
+#            datetime({epochseconds:apoc.date.parse(row.starttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as starttime,
+#            datetime({epochseconds:apoc.date.parse(row.endtime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as endtime
+#
+#      merge (startAnc:Anchor {id:row.subject_id + "-" + starttime.epochSeconds})
+#          on create
+#          set startAnc.value = starttime
+#
+#      merge (endAnc:Anchor {id:row.subject_id + "-" + endtime.epochSeconds})
+#          on create
+#          set endAnc.value = endtime
+
+
+  # 14-inputevents-p2.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/inputevents_eras_root.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+
+      with row, pa
+      create (rxad:RxAdmin {id: row.orderid})
+      create (era:DrugEra {id: "I-" + row.orderid})
+      create (era)-[:INCLUDES]->(rxad)
+      create (pa)-[:HAS_DRUG_ERA]->(era)
+
+
+  # 14-inputevents-p3.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/inputevents_eras_child.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (era)-[:INCLUDES]->(rootRxad:RxAdmin {id:row.linkorderid})
+      with era, row
+      create (rxad:RxAdmin {id:row.orderid})
+      create (era)-[:INCLUDES]->(rxad)
+
+
+  # 14-inputevents-p4.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/inputevents_rxad_main.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row,
+          datetime({epochseconds:apoc.date.parse(row.starttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as starttime,
+          datetime({epochseconds:apoc.date.parse(row.endtime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as endtime
+
+      match (rxad:RxAdmin {id:row.orderid})
+
+      match (startAnc:Anchor {id:row.subject_id + '-' + starttime.epochSeconds})
+      match (endAnc:Anchor {id:row.subject_id + '-' + endtime.epochSeconds})
+
+      match (adIRs:RefSet {id:2104})
+      match (adItem:LocalConcept {id:adIRs.code + '|' + row.ordercategorydescription})
+
+      match (flagRs:RefSet {id:2401})
+      match (adFlag:LocalConcept {id:flagRs.code + '|' + row.statusdescription})
+
+      with row, starttime, rxad, adItem, adFlag, startAnc, endAnc
+      set rxad.patientWeight = toFloat(row.patientweight),
+          rxad.valueFlag = adFlag.value
+      create (rxad)-[:OF_ITEM]->(adItem)
+
+      with row, rxad, starttime, startAnc, endAnc,
+          case when startAnc.value + duration({seconds:60}) >= endAnc.value then false else true end as isDurative
+
+      foreach (ignore in case when not isDurative then [1] else [] end |
+          create (rxad)-[:CHARTED]->(startAnc)
+      )
+
+      foreach (ignore in case when isDurative then [1] else [] end |
+          create (rxad)-[:STARTED]->(startAnc)
+          create (rxad)-[:ENDED]->(endAnc)
+      )
+
+      with row, rxad, starttime
+
+      match (vis)-[:HAS_STOP]->(stop:Stop {id:row.stay_id}),
+            (stop)-[:STARTED]->(stopStarted),
+            (stop)-[:ENDED]->(stopEnded)
+
+      with row, rxad, starttime, vis, stop, stopStarted, stopEnded
+      foreach (ignore in case when stopStarted.value <= starttime < stopEnded.value then [1] else [] end |
+          create (stop)-[:HAS_ADMIN]->(rxad)
+      )
+
+      with row, rxad, starttime, vis
+      where not (stopStarted.value <= starttime < stopEnded.value)
+      match (vis:Visit {id:row.hadm_id})-[:HAS_STOP]->(stop),
+            (stop)-[:STARTED]->(stopStarted),
+            (stop)-[:ENDED]->(stopEnded)
+      where stopStarted.value <= starttime < stopEnded.value
+      create (stop)-[:HAS_ADMIN]->(rxad)
+
+
+  # 14-inputevents-p5.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/icu/inputevents.csv
+    mode: async
+    thread_count: 20
+    chunk_size: 5000
+    log_step: 200
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (rxad:RxAdmin {id:row.orderid})
+
+      with row, rxad,
+          case when row.rate is not null and row.rate <> "" then toFloat(row.rate) else toFloat(row.amount) end as dose_value,
+          case when row.rate is not null and row.rate <> "" then row.rateuom else row.amountuom end as dose_unit,
+          case
+              when row.ordercomponenttypedescription contains "Main" then "MAIN"
+              when row.ordercomponenttypedescription contains "Additive" then "ADDITIVE"
+              when row.ordercomponenttypedescription contains "Mixed" then "BASE"
+              else "UNKNOWN"
+          end as dose_type
+  
+      match (drugRs:RefSet {id:2101})
+      match (unitRs:RefSet {id:2201})
+  
+      match (drug:LocalConcept {id:drugRs.code + '|' + row.itemid})
+      match (doseUnit:LocalConcept {id:unitRs.code + '|' + dose_unit})
+  
+      with row, unitRs, rxad, drug, doseUnit, dose_value, dose_type
+      create (rxad)-[:HAS_SEQ]->(exp:DrugExposure)
+          set exp.valueDose = dose_value,
+              exp.valueDUnit = doseUnit.value
+      create (exp)-[:OF_DRUG]->(drug)
+  
+      with row, unitRs, exp, dose_type
+      call apoc.create.setLabels(exp, ["DrugExposure", dose_type]) yield node
+  
+      with row, unitRs, exp
+      where row.rate is not null and row.rate <> ""
+  
+      match (amountUnit:LocalConcept {id:unitRs.code + '|' + row.amountuom})
+  
+      with row, exp, amountUnit
+      set exp:INFUSION,
+          exp.infAmount = toFloat(row.amounnt),
+          exp.totalInfAmount = toFloat(row.totalamount),
+          exp.valueInfAmountUnit = amountUnit.value,
+          exp.originalInfRate = toFloat(row.originalrate),
+          exp.originalInfAmount = toFloat(row.originalamount),
+          exp.fromOpenBag = case when row.isopenbag = "1" then true else false end

@@ -1,0 +1,116 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 20-radiology_note-p1.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/radiology_note_datetimes.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row,
+          datetime({epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+      merge (anc:Anchor {id:row.subject_id + '-' + charttime.epochSeconds})
+          on create
+          set anc.value = charttime
+      
+
+  # 20-radiology_note-p2.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/radiology_note_addendum.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      with row
+      where not row.note_id contains "AR"
+      create (note:Note {id:row.note_id})
+          set note:EventReport,
+              note.chartTime = datetime(),
+              note.text = "N/A"
+  
+      with row, note
+      where row.addendum_note_id is not null and row.addendum_note_id <> ""
+      create (addm:Note {id:row.addendum_note_id})
+          set addm:EventReport,
+              addm.chartTime = datetime(),
+              addm.text = "N/A"
+      create (note)-[:HAS_SEQ]->(addm)
+        
+
+  # 20-radiology_note-p3.cql
+  - url: file:///var/lib/neo4j/import/mimic-iv-note/2.2/note/radiology.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row,
+           datetime({epochseconds:apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+      match (rs:RefSet {id:2501})
+      match (item:LocalConcept {id:rs.code + '|' + row.note_type})
+      match (chartedAnc:Anchor {id:row.subject_id + '-' + charttime.epochSeconds})
+      match (note:Note {id:row.note_id})
+  
+      with row, note, chartedAnc, item, charttime
+      set note:EventReport,
+          note.chartTime = charttime,
+          note.text = row.text
+      create (note)-[:OF_ITEM]->(item)
+      create (note)-[:CHARTED]->(chartedAnc)
+  
+      with row, note, charttime
+      match (pa:Patient {id:toInteger(row.subject_id)})-[:HAS_VISIT]->()-[:HAS_STOP]->(stop),
+            (stop)-[:STARTED]->(startedAnc),
+            (stop)-[:ENDED]->(endedAnc)
+      where startedAnc.value <= charttime < endedAnc.value
+  
+      with note, stop
+      create (stop)-[:HAS_NOTE]->(note)
+      
+
+  # 20-radiology_note-p4.cql
+  - url: file:///var/lib/neo4j/import/custom_partitions/radiology_extracted_terms.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 5000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (rs:RefSet {id:2502})
+      match (item:LocalConcept {id:rs.code + '|' + row.exam_code})
+      match (note:Note {id:row.note_id})
+  
+      with row, item, note,
+          case when row.cpt_code is not null and row.cpt_code <> ''
+              then {code:row.cpt_code, system:'CPT'}
+              else null
+          end as mapping
+  
+      create (ex:Annotation {id:row.note_id + '-' + row.field_ordinal})
+          set ex.mappingCode = mapping.code,
+              ex.mappingCodeSystem = mapping.system
+  
+      create (note)-[:HAS_CONT]->(ex)
+      create (ex)-[:OF_ITEM]->(item)
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      

@@ -13,49 +13,51 @@ files:
       WITH $dict.rows as rows UNWIND rows as row
       match (pa:Patient {id:toInteger(row.subject_id)})
       match (rxad:RxAdmin {id:row.emar_id})
+      match (flagRs:RefSet {id:2401})
       set rxad.subjectId = toInteger(row.subject_id),
           rxad.hadmId = toInteger(row.hadm_id)
-
+  
       with row, rxad,
-          datetime({epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime
+          datetime({epochseconds: apoc.date.parse(row.charttime, 's', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears as charttime,
+          case when row.event_txt is not null and row.event_txt <> '' then flagRs.code + '|' + row.event_txt else "UNDEF|ALL" end as flag_id
+  
       match (chartAnc:Anchor {id:row.subject_id + "-" + charttime.epochSeconds})
-      match (flagRs:RefSet {id:2401})
-      match (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
+  
+      match (flag:LocalConcept {id:flag_id})
       match (drugRs:RefSet {id:2101})
-
-      with row, rxad, drugRs, chartAnc, flag
-      set rxad.valueFlag = flag.value
-      create (rxad)-[:RXAD_CHARTED]->(chartAnc)
-      create (rxad)-[HAS_EXPOSURE]->(rxexp:DrugExposure)
-
+      with row, rxad, drugRs, chartAnc, flag, charttime
+      set rxad.valueFlag = case when flag.value <> 0 then flag.value else null end
+      create (rxad)-[:CHARTED]->(chartAnc)
+      create (rxad)-[:HAS_SEQ]->(rxexp:DrugExposure)
+  
       with row, drugRs, rxad, rxexp, charttime
       optional match (era)-[:INCLUDES]->(rxad),
-                     (era)-[:TRACKING]->(med)
-      optional match (med)-[:HAS_RX]->(:MAIN)-[:OF_DRUG]->(mainDrug)
-      optional match (med)-[:HAS_RX]->(:BASE)-[:OF_DRUG]->(baseDrug)
-      optional match (matchedDrug:LocalConcept {id:drugRs.code + '|' + row.medication})
-
+                     (era)-[:RELATES_TO]->(med)
+      optional match (med)-[:HAS_SEQ]->(:MAIN)-[:OF_DRUG]->(mainDrug)
+      optional match (med)-[:HAS_SEQ]->(:BASE)-[:OF_DRUG]->(baseDrug)
+      optional match (matchedDrug:LocalConcept {id:drugRs.code + '|' + trim(row.medication)})
+  
       with row, rxad, charttime, rxexp, mainDrug, baseDrug, matchedDrug
-      foreach (ignore in case when mainDrug is not null and (row.medication = mainDrug.name or baseDrug is null) then [1] else [] end |
+      foreach (ignore in case when mainDrug is not null and (trim(row.medication) contains mainDrug.name or baseDrug is null) then [1] else [] end |
           create (rxexp)-[:OF_DRUG]->(mainDrug)
           set rxexp:MAIN
       )
-
+  
       foreach (ignore in case when baseDrug is not null
-                                  and ((row.medication = baseDrug.name and row.medication <> mainDrug.name)
-                                      or row.medication is null or row.medication = '') then [1] else [] end |
+                                  and ((trim(row.medication) contains baseDrug.name and not trim(row.medication) contains mainDrug.name)
+                                      or trim(row.medication) is null or trim(row.medication) = '') then [1] else [] end |
           create (rxexp)-[:OF_DRUG]->(baseDrug)
           set rxexp:BASE
       )
-
-      foreach (ignore in case when baseDrug is not null and mainDrug is not null and row.medication <> mainDrug.name
-                                  and row.medication <> baseDrug.name and matchedDrug is not null then [1] else [] end |
+  
+      foreach (ignore in case when baseDrug is not null and mainDrug is not null and matchedDrug <> mainDrug
+                                  and matchedDrug <> baseDrug and matchedDrug is not null then [] else [] end |
           create (rxexp)-[:OF_DRUG]->(matchedDrug)
           set rxexp:ADDITIVE
       )
-
-      with row, rxexp
-      where row.mainDrug is null and row.baseDrug is null and row.matchedDrug is not null
+  
+      with row, rxexp, matchedDrug
+      where ((mainDrug is null and baseDrug is null) or (not trim(row.medication) contains mainDrug.name and not trim(row.medication) contains baseDrug.name)) and matchedDrug is not null
       create (rxexp)-[:OF_DRUG]->(matchedDrug)
       set rxexp:MAIN
 
@@ -68,18 +70,19 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       with row
-      where row.parent_field_ordinal is null or row.parent_field_ordinal = ""
+      where row.parent_field_ordinal is null or trim(row.parent_field_ordinal) = ""
   
-      match (rxad:RxAdmin {id: row.emar_id})-[:HAS_EXPOSURE]->(exp)
+      match (rxad:RxAdmin {id: row.emar_id})-[:HAS_SEQ]->(exp)
       match (adIRs: RefSet {id: 2104})
       match (unitRs: RefSet {id: 2201})
   
       with row, rxad, exp, unitRs,
-          case when row.administration_type is not null and row.administration_type <> "" then rs.code + '|' + row.administration_type else "UNDEF|ITEM" end as ad_id
+          case when trim(row.administration_type) is not null and trim(row.administration_type) <> ""
+                  then adIRs.code + '|' + trim(row.administration_type) else adIRs.code + '|' + "UNKNOWN" end as ad_id
       match (adItem: LocalConcept {id: ad_id})
   
       with row, rxad, exp, unitRs, adItem
-      optional match (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+      optional match (unit:LocalConcept {id:unitRs.code + '|' + trim(row.dose_due_unit)})
   
       with row, rxad, exp, adItem, unit
       create (rxad)-[:OF_ITEM]->(adItem)
@@ -97,53 +100,54 @@ files:
           exp.priorInfRateUpto = toFloat(split(row.prior_infusion_rate, "-")[1]),
           exp.fromOpenBag = case when row.new_iv_bag_hung = "Y" then false else true end
 
-# preingest
 post_ingest:
   # 13-emar-p6.cql
   - |
-    call apoc.apoc.periodic.iterate(
+    call apoc.periodic.iterate(
     "
-    match (rxad:RxAdmin)-[:RXAD_CHARTED]->(chartAnc)
+    match (rxad:RxAdmin)-[:CHARTED]->(chartAnc)
     where rxad.hadmId is not null
     return rxad, chartAnc
     "
     ,
     "
+    with rxad, chartAnc
     match (vis:Visit {id:toString(rxad.hadmId)})-[:HAS_STOP]->(stop),
-              (stop)-[:STOP_STARTED]->(stopStarted),
-              (stop)-[:STOP_ENDED]->(stopEnded)
+          (stop)-[:STARTED]->(stopStarted),
+          (stop)-[:ENDED]->(stopEnded)
     where stopStarted.value <= chartAnc.value and stopEnded.value > chartAnc.value
-    
-    with rxad, stop
-    limit 1
-    create (stop)-[:HAS_RXAD]->(rxad)
-    remove rxad.hadmId, rxad.subjectId
+    with rxad, vis, stop
+    create (stop)-[:HAS_ADMIN]->(rxad)
+    //remove rxad.hadmId, rxad.subjectId
     "
     ,
-    {batchSize:5000, parallel:true, concurrency:10}
+    {batchSize:5000, parallel:true, concurrency:10, retries:5}
     )
+
 
   # 13-emar-p7.cql
   - |
-    call apoc.apoc.periodic.iterate(
+    call apoc.periodic.iterate(
     "
-    match (rxad:RxAdmin)-[:RXAD_CHARTED]->(chartAnc)
+    match (rxad:RxAdmin)-[:CHARTED]->(chartAnc)
     where rxad.hadmId is null
     return rxad, chartAnc
     "
     ,
     "
-    match (pa:Patient {id:rxad.subjectId})-[:HAS_CASE]->(ca)-[:HAS_VIS]->(vis)-[:HAS_STOP]->(stop),
-              (stop)-[:STOP_STARTED]->(stopStarted),
-              (stop)-[:STOP_ENDED]->(stopEnded)
+    with rxad, chartAnc
+    match (pa:Patient {id:rxad.subjectId})-[:HAS_VISIT]->(vis)-[:HAS_STOP]->(stop),
+              (stop)-[:STARTED]->(stopStarted),
+              (stop)-[:ENDED]->(stopEnded)
     where stopStarted.value <= chartAnc.value and stopEnded.value > chartAnc.value
     
     with rxad, stop
-    limit 1
-    create (stop)-[:HAS_RXAD]->(rxad)
-    remove rxad.hadmId, rxad.subjectId
+    match (rs:RefSet {id:2101})
+    with rxad, stop
+    create (stop)-[:HAS_ADMIN]->(rxad)
+    //remove rxad.hadmId, rxad.subjectId
     "
     ,
-    {batchSize:5000, parallel:true, concurrency:10}
+    {batchSize:5000, parallel:true, concurrency:10, retries:5}
     )
     

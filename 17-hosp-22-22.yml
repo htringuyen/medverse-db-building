@@ -1,0 +1,26 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 22-anchors_linking.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/patients.csv
+    mode: async
+    thread_count: 1
+    chunk_size: 500
+    log_step: 20
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      match (anc:Anchor)
+      where anc.id starts with row.subject_id + '-'
+      with row, anc
+      order by anc.id
+      with row, collect(anc) as anchors
+      call apoc.nodes.link(anchors, 'NEXT')
+      with row, head(anchors) as first_anchor, last(anchors) as last_anchor
+      match (pa:Patient {id:toInteger(row.subject_id)})
+      with row, pa, first_anchor, last_anchor
+      create (tl:Timeline {id:toInteger(row.subject_id)})
+      create (pa)-[:HAS_TIMELINE]->(tl)
+      create (tl)-[:HEAD]->(first_anchor)
+      create (tl)-[:TAIL]->(last_anchor)

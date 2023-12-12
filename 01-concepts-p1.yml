@@ -13,11 +13,11 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        merge (d:LocalDomain {id: toInteger(row.domain_id)})
-        set d.code = row.domain_code,
-            d.name = row.domain_name,
-            d.reference = row.reference
+          with row
+          merge (d:LocalDomain {id: toInteger(row.domain_id)})
+          set d.code = row.domain_code,
+              d.name = row.domain_name,
+              d.reference = row.reference
       }
   # cep01-classes.cql
   - url: file:///var/lib/neo4j/import/concepts/local_classes.csv
@@ -29,11 +29,11 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        merge (cls:LocalClass {id: toInteger(row.class_id)})
-        set cls.code = row.class_code,
-            cls.name = row.class_name,
-            cls.reference = row.reference
+          with row
+          merge (cls:LocalClass {id: toInteger(row.class_id)})
+          set cls.code = row.class_code,
+              cls.name = row.class_name,
+              cls.reference = row.reference
       }
         
   # cep02-refsets.cql
@@ -46,21 +46,22 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        merge (rs:RefSet {id: toInteger(row.id)})
-        set rs.code = row.code,
-            rs.name = row.name,
-            rs.reference = row.reference
-    
-        with rs, row
-        call apoc.create.setLabels(rs, ["RefSet", row.label]) yield node
-    
-        with row, rs
-        match (dom:LocalDomain {id:toInteger(row.domain_id)}),
-              (cls:LocalClass {id:toInteger(row.class_id)})
-        merge (rs)-[:OF_DOM]->(dom)
-        merge (rs)-[:OF_CLS]->(cls)
+          with row
+          merge (rs:RefSet {id: toInteger(row.id)})
+          set rs.code = row.code,
+              rs.name = row.name,
+              rs.reference = row.reference
+      
+          with rs, row
+          call apoc.create.setLabels(rs, ["RefSet", row.label]) yield node
+      
+          with row, rs
+          match (dom:LocalDomain {id:toInteger(row.domain_id)}),
+                (cls:LocalClass {id:toInteger(row.class_id)})
+          merge (rs)-[:OF_DOMAIN]->(dom)
+          merge (rs)-[:OF_CLASS]->(cls)
       }
+      
         
   # cep03-services.cql
   - url: file:///var/lib/neo4j/import/concepts/d_services.csv
@@ -72,15 +73,15 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id:1302})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.code})
-            on create
-            set lc:Service,
-                lc.code = row.code,
-                lc.name = row.name,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_services"
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          match (rs:RefSet {id:1302})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.code})
+              on create
+              set lc:Service,
+                  lc.code = row.code,
+                  lc.name = row.name,
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_services"
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
         
   # cep04-icd_diagnoses.cql
@@ -93,19 +94,19 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id: 1501})
-        with row, rs,
-            case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as dx_code,
-            case when row.icd_version = '9' then "ICD9CM" else "ICD10CM" end as dx_category
-        merge (lc:LocalConcept {id: rs.code + '|' + dx_code})
-            on create
-            set lc:Item:CATEGORIZED,
-                lc.code = row.icd_code,
-                lc.name = row.long_title,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_icd_diagnoses",
-                lc.category = dx_category
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          match (rs:RefSet {id: 1501})
+          with row, rs,
+              case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as dx_code,
+              case when row.icd_version = '9' then "ICD9CM" else "ICD10CM" end as dx_category
+          merge (lc:LocalConcept {id: rs.code + '|' + dx_code})
+              on create
+              set lc:Item:CATEGORIZED,
+                  lc.code = row.icd_code,
+                  lc.name = row.long_title,
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_icd_diagnoses",
+                  lc.category = dx_category
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
 
   # cep05-icd_procedures.cql
@@ -118,19 +119,19 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id:1903})
-        with row, rs,
-            case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as proc_code,
-            case when row.icd_version = '9' then "ICD9Proc" else "ICD10PCS" end as proc_category
-        merge (lc:LocalConcept {id:rs.code + '|' + proc_code})
-            on create
-            set lc:Item:CATEGORIZED,
-                lc.code = proc_code,
-                lc.name = row.long_title,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_icd_procedures",
-                lc.category = proc_category
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          match (rs:RefSet {id:1903})
+          with row, rs,
+              case when row.icd_version = '9' then 'V09-' + row.icd_code else 'V10-' + row.icd_code end as proc_code,
+              case when row.icd_version = '9' then "ICD9Proc" else "ICD10PCS" end as proc_category
+          merge (lc:LocalConcept {id:rs.code + '|' + proc_code})
+              on create
+              set lc:Item:CATEGORIZED,
+                  lc.code = proc_code,
+                  lc.name = row.long_title,
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_icd_procedures",
+                  lc.category = proc_category
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
       
   # cep06-hcpcs.cql
@@ -143,18 +144,18 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        with row,
-            case when row.category is not null and row.category <> "" then "CPT-CAT_" + row.category else "CPT-CAT_UNK" end as category
-        match (rs:RefSet {id:1904})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.code})
-            on create
-            set lc:Item:CATEGORIZED,
-                lc.code = row.code,
-                lc.name = row.short_description,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_hcpcs",
-                lc.category = category
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          with row,
+              case when row.category is not null and row.category <> "" then "CPT-CAT_" + row.category else "CPT-CAT_UNK" end as category
+          match (rs:RefSet {id:1904})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.code})
+              on create
+              set lc:Item:CATEGORIZED,
+                  lc.code = row.code,
+                  lc.name = row.short_description,
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_hcpcs",
+                  lc.category = category
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
         
     # cep07-labitems.cql
@@ -167,27 +168,27 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id:1704})
-        merge (lc:LocalConcept {id: rs.code + '|' + row.itemid})
-            on create
-            set lc:Item:CATEGORIZED,
-                lc.code = row.itemid,
-                lc.name = row.label + '|' + row.fluid + '|' + row.category,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_labitems",
-                lc.category = row.category
-        merge (lc)-[:BELONGS_TO]->(rs)
-    
-        with row
-        match (rs:RefSet {id:1703})
-        merge (lc:LocalConcept {id: rs.code + '|' + row.fluid})
-            on create
-            set lc:Item,
-                lc.code = row.fluid,
-                lc.name = row.fluid,
-                lc.source = "dataset::mimiciv/2.2/hosp/d_labitems"
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          match (rs:RefSet {id:1704})
+          merge (lc:LocalConcept {id: rs.code + '|' + trim(row.itemid)})
+              set lc:Item:CATEGORIZED,
+                  lc.code = trim(row.itemid),
+                  lc.name = row.label + '|' + row.fluid + '|' + row.category,
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_labitems",
+                  lc.category = row.category
+          merge (lc)-[:BELONGS_TO]->(rs)
+      
+          with row
+          match (rs:RefSet {id:1703})
+          merge (lc:LocalConcept {id: rs.code + '|' + trim(row.fluid)})
+              set lc:Item,
+                  lc.code = trim(row.fluid),
+                  lc.name = trim(row.fluid),
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_labitems"
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
+      
+
   # cep08-operators.cql
   - url: file:///var/lib/neo4j/import/concepts/d_operators.csv
     mode: sync
@@ -198,13 +199,19 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id:2301})
-        merge (lc:LocalConcept:Operator {id:rs.code + '|' + row.code})
-        set lc.code = row.code,
-            lc.name = row.name,
-            lc.source = "custom::otmv/opr/operator"
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          // get lookup value supplier
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          match (rs:RefSet {id:2301})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.code})
+          set lc:Operator:Lookup,
+              lc.value = lookupValue,
+              lc.code = row.code,
+              lc.name = row.name,
+              lc.source = "custom::otmv/opr/operator"
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
         
   # cep09-flags.cql
@@ -217,21 +224,21 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-    
-        // get lookup value supplier
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-    
-        match (rs:RefSet {id: 2401})
-        merge (lc:LocalConcept {id:rs.code + '|' + row.code})
-        set lc:Flag:Lookup,
-            lc.value = lookupValue,
-            lc.flagDescription = row.flag_description,
-            lc.code = row.code,
-            lc.name = row.name,
-            lc.source = "custom::otmv/flag/flag"
-        merge (lc)-[:BELONGS_TO]->(rs)
+          with row
+          // get lookup value supplier
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          match (rs:RefSet {id: 2401})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.code})
+          set lc:Flag:Lookup:CATEGORIZED,
+              lc.value = lookupValue,
+              lc.category = row.category,
+              lc.flagDescription = row.flag_description,
+              lc.code = row.code,
+              lc.name = row.name,
+              lc.source = "custom::otmv/flag/flag"
+          merge (lc)-[:BELONGS_TO]->(rs)
       }
 
   # cep10-labitems_ref_ranges.cql
@@ -244,11 +251,11 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        match (rs:RefSet {id: 1704})
-        match (lc:LocalConcept {id: rs.code + '|' + row.itemid})
-        set lc.ref_range_lower = toFloat(row.ref_range_lower),
-            lc.ref_range_upper = toFloat(row.ref_range_upper)
+          with row
+          match (rs:RefSet {id: 1704})
+          match (lc:LocalConcept {id: rs.code + '|' + row.itemid})
+          set lc.ref_range_lower = toFloat(row.ref_range_lower),
+              lc.ref_range_upper = toFloat(row.ref_range_upper)
       }
 
   # cep11-labevents_comments.cql
@@ -261,21 +268,21 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        with row where row.comments is not null and row.comments <> ''
-        // get lookup value supplier
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-    
-        merge (cmt:RefComment {idText: row.comments})
-            on create
-            set cmt:Lookup,
-                cmt.value = lookupValue
-    
-        with cmt, row
-        match (rs:RefSet {id: 1704})
-        match (item:LocalConcept {id:rs.code + '|' + row.itemid})
-        merge (item)-[:HAS_POSS_CMT]->(cmt)
+          with row
+          with row where trim(row.comments) is not null and trim(row.comments) <> ''
+          // get lookup value supplier
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          merge (cmt:RefComment {idText: trim(row.comments)})
+              on create
+              set cmt:Lookup,
+                  cmt.value = lookupValue
+      
+          with cmt, row
+          match (rs:RefSet {id: 1704})
+          match (item:LocalConcept {id:rs.code + '|' + row.itemid})
+          merge (item)-[:HAS_REF_CMT]->(cmt)
       }
 
   # cep12-labevents_valueuom.cql
@@ -288,26 +295,26 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        with row where row.valueuom is not null and row.valueuom <> ''
-        // get lookup value supplier
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-    
-        match (rs:RefSet {id:2201})
-        merge (lc:LocalConcept {id: rs.code + '|' + trim(row.valueuom)})
-            on create
-            set lc:Unit:Lookup,
-                lc.value = lookupValue,
-                lc.code = trim(row.valueuom),
-                lc.name = trim(row.valueuom),
-                lc.source = "dataset::mimiciv/2.2/hosp/d_labitems"
-        merge (lc)-[:BELONGS_TO]->(rs)
-    
-        with lc, row
-        match (rs:RefSet {id: 1704})
-        match (item:LocalConcept {id:rs.code + '|' + row.itemid})
-        merge (item)-[:HAS_POSS_UNIT]->(lc)
+          with row
+          with row where row.valueuom is not null and trim(row.valueuom) <> ''
+          // get lookup value supplier
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+      
+          match (rs:RefSet {id:2201})
+          merge (lc:LocalConcept {id: rs.code + '|' + trim(row.valueuom)})
+              on create
+              set lc:Unit:Lookup,
+                  lc.value = lookupValue,
+                  lc.code = trim(row.valueuom),
+                  lc.name = trim(row.valueuom),
+                  lc.source = "dataset::mimiciv/2.2/hosp/d_labitems"
+          merge (lc)-[:BELONGS_TO]->(rs)
+      
+          with lc, row
+          match (rs:RefSet {id: 1704})
+          match (item:LocalConcept {id:rs.code + '|' + row.itemid})
+          merge (item)-[:ASSOC_UNIT]->(lc)
       }
 
   # cep13-labevents_textvalues.cql
@@ -320,28 +327,28 @@ files:
     cql: |
       WITH $dict.rows as rows UNWIND rows as row
       call {
-        with row
-        with row
-        where row.value is not null and row.value <> ''
-            and ((not row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D*')
-                or (row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D+' and (row.valueuom is null or row.valueuom = '')))
-        match (lvs: LookupValueSupplier {id: "otmv"})
-        call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
-        // extract text param
-        match (rs:RefSet {id:1705})
-        merge (lc:LocalConcept {id: rs.code + '|' + row.value})
-            on create
-            set lc:TextParam:Lookup,
-                lc.value = lookupValue,
-                lc.code = row.value,
-                lc.name = row.value,
-                lc.source = "dataset::mimiciv/2.2/hosp/labevents"
-        merge (lc)-[:BELONGS_TO]->(rs)
-    
-        with lc, row
-        match (rs:RefSet {id: 1704})
-        match (item:LocalConcept {id:rs.code + '|' + row.itemid})
-        merge (item)-[:HAS_POSS_PARAM]->(lc)
+          with row
+          with row
+          where row.value is not null and row.value <> ''
+              and ((not row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D*')
+                  or (row.value =~ '^(\<=|\>=|\>|\<|=|)[-]?[\d]+[.]?[\d]*\s*\D+' and (trim(row.valueuom) is null or trim(row.valueuom) = '')))
+          match (lvs: LookupValueSupplier {id: "otmv"})
+          call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
+          // extract text param
+          match (rs:RefSet {id:1705})
+          merge (lc:LocalConcept {id: rs.code + '|' + row.value})
+              on create
+              set lc:TextParam:Lookup,
+                  lc.value = lookupValue,
+                  lc.code = row.value,
+                  lc.name = row.value,
+                  lc.source = "dataset::mimiciv/2.2/hosp/labevents"
+          merge (lc)-[:BELONGS_TO]->(rs)
+      
+          with lc, row
+          match (rs:RefSet {id: 1704})
+          match (item:LocalConcept {id:rs.code + '|' + row.itemid})
+          merge (item)-[:ASSOC_PARAM]->(lc)
       }
 
 pre_ingest:
@@ -361,6 +368,16 @@ pre_ingest:
     set lc:Item,
     lc.code = "UNDEFINED_ITEM",
     lc.name = "UNDEFINED_ITEM",
+    lc.source = "custom::otmv/metadata/undefined"
+
+  - merge (lc:LocalConcept:Item:Param:Flag:Unit:Route:ProdStrength {id:"UNDEF|ALL"})
+    on create
+    set lc:Lookup:RefComment,
+    lc.idText = "UNDEF|ALL",
+    lc.value = 0,
+    lc.flagDescription = "UNDEFINED_ALL",
+    lc.code = "UNDEFINED_ALL",
+    lc.name = "UNDEFINED_ALL",
     lc.source = "custom::otmv/metadata/undefined"
 
 

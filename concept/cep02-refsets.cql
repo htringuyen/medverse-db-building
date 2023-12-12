@@ -13,6 +13,6 @@ call {
     with row, rs
     match (dom:LocalDomain {id:toInteger(row.domain_id)}),
           (cls:LocalClass {id:toInteger(row.class_id)})
-    merge (rs)-[:OF_DOM]->(dom)
-    merge (rs)-[:OF_CLS]->(cls)
+    merge (rs)-[:OF_DOMAIN]->(dom)
+    merge (rs)-[:OF_CLASS]->(cls)
 }

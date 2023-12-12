@@ -1,0 +1,76 @@
+server_uri: bolt://localhost:7687
+database: medverse
+admin_user: snowj
+admin_pass: abcd1234
+files:
+  # 10-microbiologyevents-p1.cql
+  - url: file:///var/lib/neo4j/import/mimiciv/2.2/hosp/microbiologyevents.csv
+    mode: sync
+    thread_count: 1
+    chunk_size: 3000
+    log_step: 100
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      // organism testing
+      match (ms:MicroSampling {specimenId: toInteger(row.micro_specimen_id)})-[:CHARTED]->(chartedAnc)
+      match (rs:RefSet {id: 1706})
+      match (orgItem:LocalConcept {id: rs.code + '|' + row.test_itemid})
+      with row, ms, orgItem, chartedAnc,
+          case when row.org_itemid is not null then row.micro_specimen_id + '-' + row.test_itemid + '-' + row.org_itemid
+          else row.micro_specimen_id + '-' + row.test_itemid + '-' + 'N/A' end as testId
+
+      merge (mt:OrgTesting {testId: testId})
+          on create
+          set mt.sampleSeq = toInteger(row.test_seq)
+
+      merge (ms)-[:HAS_CONT]->(mt)
+      merge (mt)-[:CHARTED]->(chartedAnc)
+      merge (mt)-[:OF_ITEM]->(orgItem)
+
+      with row, mt, chartedAnc
+      match (rs:RefSet {id:1707})
+      optional match (orgParam:LocalConcept {id: rs.code + '|' + row.org_itemid})
+      optional match (cmt:RefComment {id: row.comments})
+
+      with row, mt, orgParam, cmt, chartedAnc
+      foreach (ignore in case when orgParam is not null then [1] else [] end |
+          set mt:TEXTUAL,
+              mt.valueText = orgParam.value
+      )
+      foreach (ignore in case when cmt is not null then [1] else [] end |
+          set mt.valueCmt = cmt.value
+      )
+
+      // abx testing
+      with row, mt, chartedAnc,
+          case when row.isolate_num is not null and row.isolate_num <> "" then toInteger(row.isolate_num) else null end as isolate_num,
+          case when row.quantity is not null and row.quantity <> "" then row.quantity else null end as quantity,
+          case when row.dilution_comparison = "=>" then ">=" else row.dilution_comparison end as dilution_comparison
+      where row.ab_itemid is not null and row.ab_itemid <> ''
+
+      match (abxIRs:RefSet {id:1708})
+      match (abxPRs:RefSet {id:1709})
+      match (oprRs:RefSet {id:2301})
+      match (abxItem:LocalConcept {id: abxIRs.code + '|' + row.ab_itemid})
+      optional match (abxOpr:LocalConcept {id: oprRs.code + '|' + row.dilution_comparison})
+      optional match (abxParam:LocalConcept {id: abxPRs.code + '|' + row.interpretation})
+
+      with row, mt, chartedAnc, isolate_num, quantity, abxItem, abxOpr, abxParam
+
+      create (abxTest:AbxTesting:Measurement)
+      set abxTest.isolateNum = isolate_num,
+          abxTest.quantity = quantity
+      create (abxTest)-[:CHARTED]->(chartedAnc)
+      create (abxTest)-[:OF_ITEM]->(abxItem)
+      create (mt)-[:HAS_CONT]->(abxTest)
+
+      foreach (ignore in case when row.dilution_value is not null and row.dilution_value <> "" then [1] else [] end |
+          set abxTest:NUMERIC,
+              abxTest.valueNum = toFloat(row.dilution_value),
+              abxTest.valueOpr = abxOpr.value
+      )
+
+      foreach (ignore in case when abxParam is not null then [1] else [] end |
+          set abxTest:TEXTUAL,
+              abxTest.valueText = abxParam.value
+      )

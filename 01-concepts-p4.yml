@@ -3,7 +3,7 @@ database: medverse
 admin_user: snowj
 admin_pass: abcd1234
 files:
-  # cep21-rxad_flag_emar.cql
+  # cep19-rxad_flag_emar.cql
   - url: file:///var/lib/neo4j/import/concepts/d_rxad_flag_emar.csv
     mode: sync
     thread_count: 1
@@ -19,39 +19,39 @@ files:
           match (lvs:LookupValueSupplier {id:'otmv'})
           call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
       
-          foreach(ignore in case when row.administration_type is not null and row.administration_type <> '' then [1] else [] end |
-              merge (adItem:LocalConcept {id:adIRs.code + '|' + row.administration_type})
+          foreach(ignore in case when trim(row.administration_type) is not null and trim(row.administration_type) <> '' then [1] else [] end |
+              merge (adItem:LocalConcept {id:adIRs.code + '|' + trim(row.administration_type)})
               set adItem:Item:CATEGORIZED,
                 adItem.category = "EMAR ADMINISTRATION",
-                adItem.code = row.administration_type,
-                adItem.name = row.administration_type,
+                adItem.code = trim(row.administration_type),
+                adItem.name = trim(row.administration_type),
                 adItem.source = "dataset::mimiciv/2.2/hosp/emar"
               merge (adItem)-[:BELONGS_TO]->(adIRs)
           )
       
       
-          foreach (ignore in case when row.event_txt is not null and row.event_txt <> '' then [1] else [0] end |
-              merge (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
+          foreach (ignore in case when trim(row.event_txt) is not null and trim(row.event_txt) <> '' then [1] else [] end |
+              merge (flag:LocalConcept {id:flagRs.code + '|' + trim(row.event_txt)})
               set flag:Flag:CATEGORIZED:Lookup,
                 flag.value = lookupValue,
                 flag.flagDescription = "Administration Event",
                 flag.category = "Drug Administration",
-                flag.code = row.event_txt,
-                flag.name = row.event_txt,
+                flag.code = trim(row.event_txt),
+                flag.name = trim(row.event_txt),
                 flag.source = "dataset::mimiciv/2.2/hosp/emar"
               merge (rs)-[:BELONGS_TO]->(flagRs)
           )
       
           with row, adIRs, flagRs
-          where row.administration_type is not null and row.administration_type <> ''
-                and row.event_txt is not null and row.event_txt <> ''
-          match (adItem:LocalConcept {id:adIRs.code + '|' + row.administration_type})
-          match (flag:LocalConcept {id:flagRs.code + '|' + row.event_txt})
-          merge (adItem)-[:HAS_POSS_FLAG]->(flag)
+          where trim(row.administration_type) is not null and trim(row.administration_type) <> ''
+                and trim(row.event_txt) is not null and trim(row.event_txt) <> ''
+          match (adItem:LocalConcept {id:adIRs.code + '|' + trim(row.administration_type)})
+          match (flag:LocalConcept {id:flagRs.code + '|' + trim(row.event_txt)})
+          merge (adItem)-[:ASSOC_FLAG]->(flag)
       }
       
 
-  # cep22-rxad_unit_emar.cql
+  # cep20-drug_unit_emar.cql
   - url: file:///var/lib/neo4j/import/concepts/d_drug_unit_emar.csv
     mode: sync
     thread_count: 1
@@ -67,40 +67,40 @@ files:
           match (lvs:LookupValueSupplier {id:'otmv'})
       
       
-          foreach(ignore in case when row.medication is not null and row.medication <> '' then [1] else [] end |
-              merge (drug:LocalConcept {id:drugRs.code + '|' + row.medication})
+          foreach(ignore in case when trim(row.medication) is not null and trim(row.medication) <> '' then [1] else [] end |
+              merge (drug:LocalConcept {id:drugRs.code + '|' + trim(row.medication)})
                 on create
                 set drug:Drug,
-                  drug.code = row.medication,
-                  drug.name = row.medication,
+                  drug.code = trim(row.medication),
+                  drug.name = trim(row.medication),
                   drug.source = "dataset::mimiciv/2.2/hosp/emar"
               merge (drug)-[:BELONGS_TO]->(drugRs)
           )
       
           with row, unitRs, drugRs, lvs
-          where row.dose_due_unit is not null and row.dose_due_unit <> ''
+          where trim(row.dose_due_unit) is not null and trim(row.dose_due_unit) <> ''
           call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue
       
           with row, unitRs, drugRs, lookupValue
-          foreach (ignore in case when row.dose_due_unit is not null and row.dose_due_unit <> '' then [1] else [0] end |
-              merge (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
+          foreach (ignore in case when trim(row.dose_due_unit) is not null and trim(row.dose_due_unit) <> '' then [1] else [0] end |
+              merge (unit:LocalConcept {id:unitRs.code + '|' + trim(row.dose_due_unit)})
                 on create
                 set unit:Unit:Lookup,
                     unit.value = lookupValue,
-                    unit.code = row.dose_due_unit,
-                    unit.name = row.dose_due_unit,
+                    unit.code = trim(row.dose_due_unit),
+                    unit.name = trim(row.dose_due_unit),
                     unit.source = "dataset::mimiciv/2.2/hosp/emar"
               merge (unit)-[:BELONGS_TO]->(unitRs)
           )
       
           with row, unitRs, drugRs
-          match (drug:LocalConcept {id:drugRs.code + '|' + row.medication})
-          match (unit:LocalConcept {id:unitRs.code + '|' + row.dose_due_unit})
-          merge (drug)-[:HAS_POSS_UNIT]->(unit)
+          match (drug:LocalConcept {id:drugRs.code + '|' + trim(row.medication)})
+          match (unit:LocalConcept {id:unitRs.code + '|' + trim(row.dose_due_unit)})
+          merge (drug)-[:ASSOC_UNIT]->(unit)
       }
       
 
-  # cep23-d_items_inputevents.cql
+  # cep21-d_items_inputevents.cql
   - url: file:///var/lib/neo4j/import/concepts/d_items.csv
     mode: sync
     thread_count: 1
@@ -120,11 +120,12 @@ files:
                   drug.category = row.category,
                   drug.code = row.itemid,
                   drug.name = row.label,
-                  drug.source = "dataset::mimiciv/2.2/icu/d_items"
+                  drug.source = "dataset::mimiciv/2.2/icu/d_items_inputevents"
+          merge (drug)-[:BELONGS_TO]->(rs)
       }
 
 
-  # cep24-drug_unit_inputevents.cql
+  # cep22-drug_unit_inputevents.cql
   - url: file:///var/lib/neo4j/import/concepts/d_drug_unit_inputevents.csv
     mode: sync
     thread_count: 1
@@ -136,7 +137,7 @@ files:
       call {
           with row
           match (drugRs:RefSet {id:2101})
-          match (drug:LocalConcept {id:drugRs.code + '|' + row.drug})
+          match (drug:LocalConcept {id:drugRs.code + '|' + row.itemid})
           match (lvs:LookupValueSupplier {id:'otmv'})
           match (unitRs:RefSet {id:2201})
       
@@ -151,7 +152,7 @@ files:
                   amountUnit.name = row.amountuom,
                   amountUnit.source = "dataset::mimiciv/2.2/icu/inputevents"
           merge (amountUnit)-[:BELONGS_TO]->(unitRs)
-          merge (drug)-[:HAS_POSS_UNIT]->(amountUnit)
+          merge (drug)-[:ASSOC_UNIT]->(amountUnit)
       
           // create rate unit and link if possible
           with drug, row, lvs, unitRs
@@ -165,11 +166,11 @@ files:
                   rateUnit.name = row.rateuom,
                   rateUnit.source = "dataset::mimiciv/2.2/icu/inputevents"
           merge (rateUnit)-[:BELONGS_TO]->(unitRs)
-          merge (drug)-[:HAS_POSS_UNIT]->(rateUnit)
+          merge (drug)-[:ASSOC_UNIT]->(rateUnit)
       }
-      
+            
 
-  # cep25-rxad_flag_inputevents.cql
+  # cep23-rxad_flag_inputevents.cql
   - url: file:///var/lib/neo4j/import/concepts/d_rxad_flag_inputevents.csv
     mode: sync
     thread_count: 1
@@ -202,15 +203,36 @@ files:
               on create
               set flag:Item:Lookup:CATEGORIZED,
                   flag.value = lookupValue,
-                  flag.flagDescription = "Adminstration Status",
+                  flag.flagDescription = "Adminstration/Process Status",
                   flag.category = "Drug Administration",
                   flag.code = row.statusdescription,
                   flag.name = row.statusdescription,
                   flag.source = "dataset::mimiciv/2.2/icu/inputevents"
           merge (flag)-[:BELONGS_TO]->(flagRs)
-          merge (adItem)-[:HAS_POSS_FLAG]->(flag)
+          merge (adItem)-[:ASSOC_FLAG]->(flag)
       }
       
+
+  # cep24-pers_timeline.cql
+  - url: file:///var/lib/neo4j/import/concepts/d_pers_timeline.csv
+    mode: sync
+    thread_count: 1
+    field_separator:
+    chunk_size: 5000
+    log_step: 1
+    cql: |
+      WITH $dict.rows as rows UNWIND rows as row
+      call {
+          with row
+          match (rs:RefSet {id:1102})
+          merge (lc:LocalConcept {id:rs.code + '|' + row.code})
+              on create
+              set lc:Item,
+                  lc.code = row.code,
+                  lc.name = row.name,
+                  lc.source = "custom::otmv/pers/timeline"
+          merge (lc)-[:BELONGS_TO]->(rs)
+      }
       
     
       

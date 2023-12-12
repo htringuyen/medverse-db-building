@@ -4,6 +4,6 @@ call {
     with row
     match (rs:RefSet {id: 1704})
     match (lc:LocalConcept {id: rs.code + '|' + row.itemid})
-    set lc.ref_range_lower = toFloat(row.ref_range_lower),
-        lc.ref_range_upper = toFloat(row.ref_range_upper)
+    set lc.refRangeLower = toFloat(row.ref_range_lower),
+        lc.refRangeUpper = toFloat(row.ref_range_upper)
 }

@@ -9,11 +9,11 @@ call {
          (datetime({epochmillis: apoc.date.parse(row.transfertime, 'ms', 'yyyy-MM-dd HH:mm:ss')}) - pa.shiftedYears).epochSeconds as svEpoch
     match (rs:RefSet {id: 1302})
     match (lc:LocalConcept {id:rs.code + '|' + row.curr_service})
-    create (visInf:VisInfo:ServiceTransfer:EXISTENT)-[:OF_ITEM]->(lc)
-    create (vis)-[:HAS_VINF]->(visInf)
+    create (visInf:VisitInfo:ServiceTransfer:EXISTENT)-[:OF_ITEM]->(lc)
+    create (vis)-[:HAS_VISINF]->(visInf)
     with row, visInf, svEpoch
     merge (anc:Anchor {id:row.hadm_id + '-' + svEpoch})
         on create
         set anc.value = datetime({epochseconds: svEpoch})
-    create (visInf)-[:VINF_CHARTED]->(anc)
+    create (visInf)-[:HAPPENED]->(anc)
 } in transactions of 5000 rows

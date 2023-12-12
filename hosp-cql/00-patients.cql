@@ -4,14 +4,21 @@ LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/mimiciv/2.2/hosp/patien
 CALL {
     WITH row
     WITH row,
-        toInteger(split(row.anchor_year_group, " - ")[1]) as pVal,
+        toInteger(split(row.anchor_year_group, " - ")[0]) as p3,
         toInteger(row.anchor_year) as fVal
+
+    with row, fVal, p3,
+        p3 - 1 as p2,
+        p3 - 2 as p1,
+        p3 - 3 as p0
 
     WITH row,
         case
-            when fVal % 4 = 0 and fVal % 100 != 0 then pVal - (pVal % 4)
-            when fVal % 400 = 0 then pVal - (pVal % 400)
-            else pVal
+            when p3 % 4 = fVal % 4 then p3
+            when p2 % 4 = fVal % 4 then p2
+            when p1 % 4 = fVal % 4 then p1
+            when p0 % 4 = fVal % 4 then p0
+            else p3
         end as fixedYearVal
 
     WITH row,
@@ -31,23 +38,31 @@ CALL {
         p.lastName = "Plast " + row.subject_id,
         p.shiftedYears = shiftedYears
 
-    MERGE (ca:Case {id:row.subject_id + '-01'})
-    MERGE (p)-[:HAS_CASE]->(ca)
+    // MERGE (ca:Case {id:row.subject_id + '-01'})
+    // MERGE (p)-[:HAS_CASE]->(ca)
+    with row, p, deathday, birthday
+    match (rs:RefSet {id:1102})
+    match (dobItem:LocalConcept {id:rs.code + '|' + "DOB"})
+    match (dodItem:LocalConcept {id:rs.code + '|' + "DOD"})
 
     // create birthday anchor
     MERGE (bac:Anchor {id:row.subject_id + "-" +  birthday.epochSeconds})
         on create
         set bac.value = birthday
-    MERGE (p)-[:BIRTHED]->(bac)
+    create (dob:PersInfo:BirthDate:EXISTENT)-[:OF_ITEM]->(dobItem)
+    create (dob)-[:HAPPENED]->(bac)
+    create (p)-[:HAS_PERSINF]->(dob)
+
 
     // create deathday anchor
     foreach (ignore in case when deathday is not null then [1] else [] END |
         MERGE (dac:Anchor {id:row.subject_id + "-" +  deathday.epochSeconds})
             on create
             set dac.value = deathday
-        MERGE (p)-[:DIED]->(dac)
+        create (dod:PersInfo:DeathDate:EXISTENT)-[:OF_ITEM]->(dodItem)
+        create (dod)-[:HAPPENED]->(dac)
+        create (p)-[:HAS_PERSINF]->(dod)
     )
-
 
     // create gender concept
     WITH row, p
@@ -65,12 +80,5 @@ CALL {
     WITH row, p, rs, lc
     MERGE (lc)-[:BELONGS_TO]->(rs)
     CREATE (persInf:PersInfo:Gender:EXISTENT)-[:OF_ITEM]->(lc)
-    CREATE (p)-[:HAS_PINF]->(persInf)
+    CREATE (p)-[:HAS_PERSINF]->(persInf)
 } in transactions of 5000 rows
-
-
-
-
-
-
-

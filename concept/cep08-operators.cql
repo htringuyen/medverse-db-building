@@ -2,7 +2,6 @@ profile
 LOAD CSV WITH HEADERS FROM "file:///var/lib/neo4j/import/concepts/d_operators.csv" AS row
 call {
     with row
-
     // get lookup value supplier
     match (lvs: LookupValueSupplier {id: "otmv"})
     call apoc.atomic.add(lvs, "value", 1, 10) yield oldValue as lookupValue

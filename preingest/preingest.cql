@@ -19,3 +19,16 @@ merge (lc:LocalConcept {id:"UNDEF|ITEM"})
         lc.code = "UNDEFINED_ITEM",
         lc.name = "UNDEFINED_ITEM",
         lc.source = "custom::otmv/metadata/undefined"
+;
+
+merge (lc:LocalConcept:Item:Param:Flag:Unit:Route:ProdStrength {id:"UNDEF|ALL"})
+    on create
+    set lc:Lookup:RefComment,
+        lc.idText = "UNDEF|ALL",
+        lc.value = 0,
+        lc.flagDescription = "UNDEFINED_ALL",
+        lc.code = "UNDEFINED_ALL",
+        lc.name = "UNDEFINED_ALL",
+        lc.source = "custom::otmv/metadata/undefined"
+
+;
